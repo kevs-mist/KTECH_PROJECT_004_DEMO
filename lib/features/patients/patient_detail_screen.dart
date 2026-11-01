@@ -338,6 +338,21 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
           _DetailRow(label: 'Sepsis', value: patient.sepsis!),
         if (patient.organism != null)
           _DetailRow(label: 'Organism', value: patient.organism!),
+        if (patient.maternalReceivedAntibiotics != null)
+          _DetailRow(
+            label: 'Mother received antibiotics (last 7 days)',
+            value: patient.maternalReceivedAntibiotics! ? 'Yes' : 'No',
+          ),
+        if (patient.maternalAntibiotics != null &&
+            patient.maternalAntibiotics!.isNotEmpty)
+          _DetailRow(
+            label: 'Maternal antibiotics',
+            value: [
+              ...patient.maternalAntibiotics!,
+              if (patient.maternalAntibioticsOther?.isNotEmpty ?? false)
+                patient.maternalAntibioticsOther!,
+            ].join(', '),
+          ),
         if (patient.feeding != null && patient.feeding!.isNotEmpty)
           _DetailRow(label: 'Feeding', value: patient.feeding!.join(', ')),
         if (patient.rtfStarted != null)
@@ -505,9 +520,9 @@ class _DetailRow extends StatelessWidget {
             child: Text(
               label,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppTheme.textSecondary,
-                    fontWeight: FontWeight.w500,
-                  ),
+                color: AppTheme.textSecondary,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
           Expanded(

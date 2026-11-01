@@ -19,6 +19,9 @@ void main() {
       pin: '380001',
       del: 'Hospital',
       antibiotics: const ['Ampicillin'],
+      maternalReceivedAntibiotics: true,
+      maternalAntibiotics: const ['Gentamicin', 'Others'],
+      maternalAntibioticsOther: 'Cefixime',
       length: 45.5,
       fileName: 'birth-record.pdf',
       adductaAngle: 'Normal',
@@ -37,6 +40,9 @@ void main() {
     final restored = PatientStay.fromJson(patient.toJson());
 
     expect(restored.antibiotics, ['Ampicillin']);
+    expect(restored.maternalReceivedAntibiotics, isTrue);
+    expect(restored.maternalAntibiotics, ['Gentamicin', 'Others']);
+    expect(restored.maternalAntibioticsOther, 'Cefixime');
     expect(restored.babyName, 'B/O Example - A');
     expect(restored.financialYear, 2025);
     expect(restored.branch, Branch.arpanMother);

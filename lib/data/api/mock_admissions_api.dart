@@ -18,11 +18,7 @@ class MockAdmissionsApi implements AdmissionsApi {
   int _idCounter = 0;
   bool _initialized = false;
 
-  MockAdmissionsApi({
-    this.latency,
-    this.failureRate = 0.0,
-    this.store,
-  }) {
+  MockAdmissionsApi({this.latency, this.failureRate = 0.0, this.store}) {
     if (store == null) {
       _initData();
     }
@@ -179,7 +175,8 @@ class MockAdmissionsApi implements AdmissionsApi {
 
     final fy = admission.financialYear ?? _getFinancialYear(admission.doa);
     final nextSerial = _maxSerialForFinancialYear(fy) + 1;
-    final id = admission.id ??
+    final id =
+        admission.id ??
         'mock_${DateTime.now().microsecondsSinceEpoch}_${_idCounter++}';
 
     String babyName = admission.babyName ?? '';
@@ -280,8 +277,8 @@ class MockAdmissionsApi implements AdmissionsApi {
       dod = DateTime.now();
     }
 
-    final stay = dischargeData['stay'] as int? ??
-        dod.difference(existing.doa).inDays;
+    final stay =
+        dischargeData['stay'] as int? ?? dod.difference(existing.doa).inDays;
 
     final dischargeType = dischargeData['dischargeType'] is DischargeType
         ? dischargeData['dischargeType'] as DischargeType
@@ -302,29 +299,40 @@ class MockAdmissionsApi implements AdmissionsApi {
           : existing.dateOfBirth,
       placeOfDeliveryDischarge:
           dischargeData['placeOfDeliveryDischarge'] as String? ??
-              existing.placeOfDeliveryDischarge,
-      gestAgeWeeks: dischargeData['gestAgeWeeks'] as int? ??
-          existing.gestAgeWeeks,
-      gestAgeDays: dischargeData['gestAgeDays'] as int? ??
-          existing.gestAgeDays,
-      birthWeight: (dischargeData['birthWeight'] as num?)?.toDouble() ??
+          existing.placeOfDeliveryDischarge,
+      gestAgeWeeks:
+          dischargeData['gestAgeWeeks'] as int? ?? existing.gestAgeWeeks,
+      gestAgeDays: dischargeData['gestAgeDays'] as int? ?? existing.gestAgeDays,
+      birthWeight:
+          (dischargeData['birthWeight'] as num?)?.toDouble() ??
           existing.birthWeight,
-      admissionWeight: (dischargeData['admissionWeight'] as num?)?.toDouble() ??
+      admissionWeight:
+          (dischargeData['admissionWeight'] as num?)?.toDouble() ??
           existing.admissionWeight,
       weightPercentile: dischargeData['weightPercentile'] is WeightPercentile
           ? dischargeData['weightPercentile'] as WeightPercentile
           : existing.weightPercentile,
-      dischargeWeight: (dischargeData['dischargeWeight'] as num?)?.toDouble() ??
+      dischargeWeight:
+          (dischargeData['dischargeWeight'] as num?)?.toDouble() ??
           existing.dischargeWeight,
       headCircumference:
           (dischargeData['headCircumference'] as num?)?.toDouble() ??
-              existing.headCircumference,
+          existing.headCircumference,
       length: (dischargeData['length'] as num?)?.toDouble() ?? existing.length,
       shiftedTo: dischargeData['shiftedTo'] as String? ?? existing.shiftedTo,
       shiftReason:
           dischargeData['shiftReason'] as String? ?? existing.shiftReason,
       maternalMorbidities:
           dischargeData['maternalMorbidities'] as List<String>?,
+      maternalReceivedAntibiotics:
+          dischargeData['maternalReceivedAntibiotics'] as bool? ??
+          existing.maternalReceivedAntibiotics,
+      maternalAntibiotics:
+          dischargeData['maternalAntibiotics'] as List<String>? ??
+          existing.maternalAntibiotics,
+      maternalAntibioticsOther:
+          dischargeData['maternalAntibioticsOther'] as String? ??
+          existing.maternalAntibioticsOther,
       cardiovascularSystem: dischargeData['cardiovascularSystem'] as String?,
       sepsis: dischargeData['sepsis'] as String?,
       organism: dischargeData['organism'] as String?,
