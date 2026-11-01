@@ -50,6 +50,7 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
   final _maternalMorbiditiesOtherController = TextEditingController();
   final _antentalScanOtherController = TextEditingController();
   final _respiratorySystemOtherController = TextEditingController();
+  final _maternalAntibioticsOtherController = TextEditingController();
   final _sepsisOtherController = TextEditingController();
   final _feedingOtherController = TextEditingController();
   final _rtfStartedController = TextEditingController();
@@ -75,6 +76,7 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
   BPD? _bpd;
   ROP? _rop;
   String? _sepsis;
+  bool? _maternalReceivedAntibiotics;
   DischargeType _dischargeType = DischargeType.routine;
   String? _placeOfDeliveryDischarge;
   Prefix? _prefix;
@@ -128,6 +130,7 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
   Set<String> _ventilation = {};
   Set<String> _feeding = {};
   Set<String> _antibiotics = {};
+  Set<String> _maternalAntibiotics = {};
 
   // Checkboxes
   bool? _probiotics;
@@ -159,6 +162,7 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
     _maternalMorbiditiesOtherController.dispose();
     _antentalScanOtherController.dispose();
     _respiratorySystemOtherController.dispose();
+    _maternalAntibioticsOtherController.dispose();
     _sepsisOtherController.dispose();
     _feedingOtherController.dispose();
     _rtfStartedController.dispose();
@@ -347,6 +351,8 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
     _antentalScanOtherController.text = patient.antentalScanOther ?? '';
     _respiratorySystemOtherController.text =
         patient.respiratorySystemOther ?? '';
+    _maternalAntibioticsOtherController.text =
+        patient.maternalAntibioticsOther ?? '';
     _sepsisOtherController.text = patient.sepsisOther ?? '';
     _feedingOtherController.text = patient.feedingOther ?? '';
     _rtfStartedController.text = patient.rtfStarted ?? '';
@@ -378,6 +384,8 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
     _ventilation = {...?patient.ventilation};
     _feeding = {...?patient.feeding};
     _antibiotics = {...?patient.antibiotics};
+    _maternalReceivedAntibiotics = patient.maternalReceivedAntibiotics;
+    _maternalAntibiotics = {...?patient.maternalAntibiotics};
     _probiotics = patient.probiotics;
     _bloodTransfusion = patient.bloodTransfusion ?? false;
     _picc = patient.picc;
@@ -481,6 +489,14 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
             ? null
             : _respiratorySystem.toList(),
         antibiotics: _antibiotics.isEmpty ? null : _antibiotics.toList(),
+        maternalReceivedAntibiotics: _maternalReceivedAntibiotics,
+        maternalAntibiotics: _maternalAntibiotics.isEmpty
+            ? null
+            : _maternalAntibiotics.toList(),
+        maternalAntibioticsOther:
+            _maternalAntibioticsOtherController.text.trim().isEmpty
+            ? null
+            : _maternalAntibioticsOtherController.text.trim(),
         cardiovascularSystem:
             _cardiovascularSystemController.text.trim().isEmpty
             ? null
@@ -609,7 +625,9 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (ref.watch(authControllerProvider.select((s) => s.isDemo))) ...[
+                if (ref.watch(
+                  authControllerProvider.select((s) => s.isDemo),
+                )) ...[
                   const DemoBanner(),
                   const SizedBox(height: AppTheme.space16),
                 ],
@@ -1321,6 +1339,74 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
                   ],
                 ),
                 const SizedBox(height: AppTheme.space16),
+                Text(
+                  'Maternal Antibiotics (last 7 days)',
+                  style: Theme.of(context).textTheme.titleSmall
+                      ?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: AppTheme.space8),
+                _buildDropdownField<bool>(
+                  label: 'Did the mother receive any antibiotics?',
+                  value: _maternalReceivedAntibiotics,
+                  items: const [
+                    DropdownMenuItem(value: true, child: Text('Yes')),
+                    DropdownMenuItem(value: false, child: Text('No')),
+                  ],
+                  onChanged: (value) => setState(() {
+                    _maternalReceivedAntibiotics = value;
+                    if (value != true) {
+                      _maternalAntibiotics.clear();
+                      _maternalAntibioticsOtherController.clear();
+                    }
+                  }),
+                ),
+                if (_maternalReceivedAntibiotics == true) ...[
+                  const SizedBox(height: AppTheme.space16),
+                  _buildMultiSelectField(
+                    label: 'Maternal antibiotics',
+                    options: const [
+                      'Ampicillin',
+                      'Gentamicin',
+                      'Amikacin',
+                      'Cefuroxime',
+                      'Ceftazidime',
+                      'Piperacillin',
+                      'Cefoperazone',
+                      'Meropenem',
+                      'Vancomycin',
+                      'Ceftriaxone',
+                      'Linezolid',
+                      'Micafungin',
+                      'Caspofungin',
+                      'Imipenem',
+                      'Metronidazole',
+                      'Colistin',
+                      'Teicoplanin',
+                      'Piperacillin-Tazobactam',
+                      'Fluconazole',
+                      'Amoxyclav',
+                      'Fosfomycin',
+                      'Voriconazole',
+                      'Clindamycin',
+                      'Cefoperazone-Sulbactam',
+                      'Amphotericin B',
+                      'Cefotaxime',
+                      'Others',
+                    ],
+                    selected: _maternalAntibiotics,
+                    onChanged: (set) => setState(() {
+                      _maternalAntibiotics = set;
+                    }),
+                  ),
+                  if (_maternalAntibiotics.contains('Others')) ...[
+                    const SizedBox(height: AppTheme.space16),
+                    _buildTextField(
+                      label: 'Other maternal antibiotic',
+                      controller: _maternalAntibioticsOtherController,
+                    ),
+                  ],
+                ],
+                const SizedBox(height: AppTheme.space16),
                 // Field 28: Sepsis
                 _buildDropdownField<String>(
                   label: 'Sepsis',
@@ -1358,10 +1444,42 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
                     'Ampicillin',
                     'Gentamicin',
                     'Amikacin',
+                    'Cefuroxime',
+                    'Ceftazidime',
+                    'Piperacillin',
+                    'Cefoperazone',
                     'Cefotaxime',
+                    'Ceftriaxone',
+                    'Linezolid',
+                    'Micafungin',
+                    'Caspofungin',
+                    'Imipenem',
+                    'Metronidazole',
+                    'Colistin',
+                    'Teicoplanin',
                     'Piperacillin/Tazobactam',
+                    'Piperacillin-Tazobactam',
                     'Meropenem',
+                    'Meropenam',
                     'Vancomycin',
+                    'Fluconazole',
+                    'Amoxiclav',
+                    'Amoxyclav',
+                    'Fosfomycin',
+                    'Voriconazole',
+                    'Clindamycin',
+                    'Cefoperazone-Sulbactam',
+                    'Amphotericin B',
+                    'Tazoct',
+                    'Tazocin',
+                    'Mikacin',
+                    'Augmentin',
+                    'Zosul',
+                    'Lavofiox',
+                    'Levofloxacin',
+                    'Xylistin',
+                    'Tergocid',
+                    'Tergoid',
                   ],
                   selected: _antibiotics,
                   onChanged: (set) => setState(() => _antibiotics = set),

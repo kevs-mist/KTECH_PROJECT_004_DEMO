@@ -92,6 +92,9 @@ class PatientStay {
   final String? respiratorySystemOther; // Other text
   final List<String>? respiratorySystem; // Multi-select
   final List<String>? antibiotics;
+  final bool? maternalReceivedAntibiotics;
+  final List<String>? maternalAntibiotics;
+  final String? maternalAntibioticsOther;
   final String? cardiovascularSystem;
   final String? sepsisOther; // Other text
   final String? sepsis; // No Sepsis, Culture -ve, Culture +ve
@@ -210,6 +213,9 @@ class PatientStay {
     this.respiratorySystemOther,
     this.respiratorySystem,
     this.antibiotics,
+    this.maternalReceivedAntibiotics,
+    this.maternalAntibiotics,
+    this.maternalAntibioticsOther,
     this.cardiovascularSystem,
     this.sepsisOther,
     this.sepsis,
@@ -295,6 +301,9 @@ class PatientStay {
     String? respiratorySystemOther,
     List<String>? respiratorySystem,
     List<String>? antibiotics,
+    bool? maternalReceivedAntibiotics,
+    List<String>? maternalAntibiotics,
+    String? maternalAntibioticsOther,
     String? cardiovascularSystem,
     String? sepsisOther,
     String? sepsis,
@@ -381,6 +390,11 @@ class PatientStay {
           respiratorySystemOther ?? this.respiratorySystemOther,
       respiratorySystem: respiratorySystem ?? this.respiratorySystem,
       antibiotics: antibiotics ?? this.antibiotics,
+      maternalReceivedAntibiotics:
+          maternalReceivedAntibiotics ?? this.maternalReceivedAntibiotics,
+      maternalAntibiotics: maternalAntibiotics ?? this.maternalAntibiotics,
+      maternalAntibioticsOther:
+          maternalAntibioticsOther ?? this.maternalAntibioticsOther,
       cardiovascularSystem: cardiovascularSystem ?? this.cardiovascularSystem,
       sepsisOther: sepsisOther ?? this.sepsisOther,
       sepsis: sepsis ?? this.sepsis,
@@ -472,6 +486,9 @@ class PatientStay {
       'respiratorySystemOther': respiratorySystemOther,
       'respiratorySystem': respiratorySystem,
       'antibiotics': antibiotics,
+      'maternalReceivedAntibiotics': maternalReceivedAntibiotics,
+      'maternalAntibiotics': maternalAntibiotics,
+      'maternalAntibioticsOther': maternalAntibioticsOther,
       'cardiovascularSystem': cardiovascularSystem,
       'sepsisOther': sepsisOther,
       'sepsis': sepsis,
@@ -612,6 +629,11 @@ class PatientStay {
       antibiotics: (json['antibiotics'] as List<dynamic>?)
           ?.map((e) => e as String)
           .toList(),
+      maternalReceivedAntibiotics: json['maternalReceivedAntibiotics'] as bool?,
+      maternalAntibiotics: (json['maternalAntibiotics'] as List<dynamic>?)
+          ?.map((e) => e as String)
+          .toList(),
+      maternalAntibioticsOther: json['maternalAntibioticsOther'] as String?,
       cardiovascularSystem: json['cardiovascularSystem'] as String?,
       sepsisOther: json['sepsisOther'] as String?,
       sepsis: json['sepsis'] as String?,
