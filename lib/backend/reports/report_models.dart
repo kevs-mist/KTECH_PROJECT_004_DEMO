@@ -38,6 +38,67 @@ enum ReportColumn {
   gestationalAge,
   diagnosis,
   contactNumber,
+  prefix,
+  stay,
+  contactRelation,
+  contactNumber2,
+  contactRelation2,
+  address,
+  street,
+  area,
+  city,
+  pin,
+  placeOfDelivery,
+  patientStatus,
+  remarks,
+  lastRemarked,
+  ipNumber,
+  state,
+  district,
+  dateOfBirth,
+  admissionWeight,
+  weightPercentile,
+  maternalMorbidities,
+  maternalMorbiditiesOther,
+  ans,
+  antenatalScan,
+  antenatalScanOther,
+  modeOfDelivery,
+  resuscitationAtBirth,
+  respiratorySystem,
+  respiratorySystemOther,
+  antibiotics,
+  maternalReceivedAntibiotics,
+  maternalAntibiotics,
+  maternalAntibioticsOther,
+  cardiovascularSystem,
+  sepsis,
+  sepsisOther,
+  organism,
+  feeding,
+  feedingOther,
+  rtfStarted,
+  fullFeedsReached,
+  surfactant,
+  ventilation,
+  bpd,
+  probiotics,
+  bloodTransfusion,
+  rop,
+  usgHead,
+  fileName,
+  adductaAngle,
+  cdcHeadControl,
+  cdcSitting,
+  cdcStanding,
+  dasiiMotorAgeAt50thCentile,
+  dasiiMotorAgeAt97thCentile,
+  dasiiMentalAgeAt50thCentile,
+  dasiiMentalAgeAt97thCentile,
+  other,
+  picc,
+  user,
+  statusOk,
 }
 
 extension ReportColumnDetails on ReportColumn {
@@ -62,13 +123,82 @@ extension ReportColumnDetails on ReportColumn {
     ReportColumn.gestationalAge => 'Gest. age',
     ReportColumn.diagnosis => 'Clinical notes',
     ReportColumn.contactNumber => 'Contact',
+    ReportColumn.prefix => 'Name prefix',
+    ReportColumn.stay => 'Stay (days)',
+    ReportColumn.contactRelation => 'Contact relation',
+    ReportColumn.contactNumber2 => 'Contact 2',
+    ReportColumn.contactRelation2 => 'Contact 2 relation',
+    ReportColumn.address => 'Address',
+    ReportColumn.street => 'Street',
+    ReportColumn.area => 'Area',
+    ReportColumn.city => 'City',
+    ReportColumn.pin => 'PIN code',
+    ReportColumn.placeOfDelivery => 'Place of delivery',
+    ReportColumn.patientStatus => 'Admission status',
+    ReportColumn.remarks => 'Remarks',
+    ReportColumn.lastRemarked => 'Last remarked',
+    ReportColumn.ipNumber => 'IP No.',
+    ReportColumn.state => 'State',
+    ReportColumn.district => 'District',
+    ReportColumn.dateOfBirth => 'Date of birth',
+    ReportColumn.admissionWeight => 'Admission wt. (kg)',
+    ReportColumn.weightPercentile => 'Weight percentile',
+    ReportColumn.maternalMorbidities => 'Maternal morbidities',
+    ReportColumn.maternalMorbiditiesOther => 'Other maternal morbidities',
+    ReportColumn.ans => 'Antenatal steroids',
+    ReportColumn.antenatalScan => 'Antenatal scan',
+    ReportColumn.antenatalScanOther => 'Other antenatal scan',
+    ReportColumn.modeOfDelivery => 'Mode of delivery',
+    ReportColumn.resuscitationAtBirth => 'Resuscitation at birth',
+    ReportColumn.respiratorySystem => 'Respiratory system',
+    ReportColumn.respiratorySystemOther => 'Other respiratory details',
+    ReportColumn.antibiotics => 'Antibiotics',
+    ReportColumn.maternalReceivedAntibiotics => 'Maternal antibiotics (7 days)',
+    ReportColumn.maternalAntibiotics => 'Maternal antibiotic names',
+    ReportColumn.maternalAntibioticsOther => 'Other maternal antibiotic',
+    ReportColumn.cardiovascularSystem => 'Cardiovascular system',
+    ReportColumn.sepsis => 'Sepsis',
+    ReportColumn.sepsisOther => 'Other sepsis details',
+    ReportColumn.organism => 'Organism',
+    ReportColumn.feeding => 'Feeding',
+    ReportColumn.feedingOther => 'Other feeding details',
+    ReportColumn.rtfStarted => 'RTF started',
+    ReportColumn.fullFeedsReached => 'Full feeds reached',
+    ReportColumn.surfactant => 'Surfactant',
+    ReportColumn.ventilation => 'Ventilation',
+    ReportColumn.bpd => 'BPD',
+    ReportColumn.probiotics => 'Probiotics',
+    ReportColumn.bloodTransfusion => 'Blood transfusion',
+    ReportColumn.rop => 'ROP',
+    ReportColumn.usgHead => 'USG head',
+    ReportColumn.fileName => 'Uploaded file name',
+    ReportColumn.adductaAngle => 'Adducta angle',
+    ReportColumn.cdcHeadControl => 'CDC head control',
+    ReportColumn.cdcSitting => 'CDC sitting',
+    ReportColumn.cdcStanding => 'CDC standing',
+    ReportColumn.dasiiMotorAgeAt50thCentile => 'DASII motor age (50th)',
+    ReportColumn.dasiiMotorAgeAt97thCentile => 'DASII motor age (97th)',
+    ReportColumn.dasiiMentalAgeAt50thCentile => 'DASII mental age (50th)',
+    ReportColumn.dasiiMentalAgeAt97thCentile => 'DASII mental age (97th)',
+    ReportColumn.other => 'Other',
+    ReportColumn.picc => 'PICC',
+    ReportColumn.user => 'Discharged by',
+    ReportColumn.statusOk => 'Status verified',
   };
 
   bool get containsIdentifier => switch (this) {
     ReportColumn.serialNumber ||
     ReportColumn.babyName ||
     ReportColumn.motherName ||
-    ReportColumn.contactNumber => true,
+    ReportColumn.contactNumber ||
+    ReportColumn.contactNumber2 ||
+    ReportColumn.address ||
+    ReportColumn.street ||
+    ReportColumn.area ||
+    ReportColumn.city ||
+    ReportColumn.pin ||
+    ReportColumn.dateOfBirth ||
+    ReportColumn.ipNumber => true,
     _ => false,
   };
 
@@ -103,6 +233,86 @@ extension ReportColumnDetails on ReportColumn {
             : '${patient.gestAgeWeeks}w ${patient.gestAgeDays ?? 0}d',
       ReportColumn.diagnosis => _clinicalNotes(patient),
       ReportColumn.contactNumber => patient.contactNumber,
+      ReportColumn.prefix => _enumLabel(patient.prefix.name),
+      ReportColumn.stay => (patient.stay ?? patient.daysStayed).toString(),
+      ReportColumn.contactRelation => _enumLabel(patient.contactRelation.name),
+      ReportColumn.contactNumber2 => patient.contactNumber2 ?? '',
+      ReportColumn.contactRelation2 => _enumLabel(
+        patient.contactRelation2?.name,
+      ),
+      ReportColumn.address => patient.address ?? '',
+      ReportColumn.street => patient.street ?? '',
+      ReportColumn.area => patient.area ?? '',
+      ReportColumn.city => patient.city,
+      ReportColumn.pin => patient.pin,
+      ReportColumn.placeOfDelivery => patient.del,
+      ReportColumn.patientStatus => _enumLabel(patient.status?.name),
+      ReportColumn.remarks => patient.remarks ?? '',
+      ReportColumn.lastRemarked => patient.lastRemarked ?? '',
+      ReportColumn.ipNumber => patient.ipNo ?? '',
+      ReportColumn.state => patient.state ?? '',
+      ReportColumn.district => patient.district ?? '',
+      ReportColumn.dateOfBirth => _dateLabel(patient.dateOfBirth),
+      ReportColumn.admissionWeight => _numberLabel(patient.admissionWeight),
+      ReportColumn.weightPercentile => _enumLabel(
+        patient.weightPercentile?.name,
+      ),
+      ReportColumn.maternalMorbidities => _listLabel(
+        patient.maternalMorbidities,
+      ),
+      ReportColumn.maternalMorbiditiesOther =>
+        patient.maternalMorbiditiesOther ?? '',
+      ReportColumn.ans => _enumLabel(patient.ans?.name),
+      ReportColumn.antenatalScan => _listLabel(patient.antentalScan),
+      ReportColumn.antenatalScanOther => patient.antentalScanOther ?? '',
+      ReportColumn.modeOfDelivery => _enumLabel(patient.modeOfDelivery?.name),
+      ReportColumn.resuscitationAtBirth => _listLabel(
+        patient.resuscitationAtBirth,
+      ),
+      ReportColumn.respiratorySystem => _listLabel(patient.respiratorySystem),
+      ReportColumn.respiratorySystemOther =>
+        patient.respiratorySystemOther ?? '',
+      ReportColumn.antibiotics => _listLabel(patient.antibiotics),
+      ReportColumn.maternalReceivedAntibiotics => _boolLabel(
+        patient.maternalReceivedAntibiotics,
+      ),
+      ReportColumn.maternalAntibiotics => _listLabel(
+        patient.maternalAntibiotics,
+      ),
+      ReportColumn.maternalAntibioticsOther =>
+        patient.maternalAntibioticsOther ?? '',
+      ReportColumn.cardiovascularSystem => patient.cardiovascularSystem ?? '',
+      ReportColumn.sepsis => patient.sepsis ?? '',
+      ReportColumn.sepsisOther => patient.sepsisOther ?? '',
+      ReportColumn.organism => patient.organism ?? '',
+      ReportColumn.feeding => _listLabel(patient.feeding),
+      ReportColumn.feedingOther => patient.feedingOther ?? '',
+      ReportColumn.rtfStarted => patient.rtfStarted ?? '',
+      ReportColumn.fullFeedsReached => patient.fullFeedsReached ?? '',
+      ReportColumn.surfactant => _enumLabel(patient.surfactant?.name),
+      ReportColumn.ventilation => _listLabel(patient.ventilation),
+      ReportColumn.bpd => _enumLabel(patient.bpd?.name),
+      ReportColumn.probiotics => _boolLabel(patient.probiotics),
+      ReportColumn.bloodTransfusion => _boolLabel(patient.bloodTransfusion),
+      ReportColumn.rop => _enumLabel(patient.rop?.name),
+      ReportColumn.usgHead => patient.usgHead ?? '',
+      ReportColumn.fileName => patient.fileName ?? '',
+      ReportColumn.adductaAngle => patient.adductaAngle ?? '',
+      ReportColumn.cdcHeadControl => patient.cdcHeadControl ?? '',
+      ReportColumn.cdcSitting => patient.cdcSitting ?? '',
+      ReportColumn.cdcStanding => patient.cdcStanding ?? '',
+      ReportColumn.dasiiMotorAgeAt50thCentile =>
+        patient.dasiiMotorAgeAt50thCentile ?? '',
+      ReportColumn.dasiiMotorAgeAt97thCentile =>
+        patient.dasiiMotorAgeAt97thCentile ?? '',
+      ReportColumn.dasiiMentalAgeAt50thCentile =>
+        patient.dasiiMentalAgeAt50thCentile ?? '',
+      ReportColumn.dasiiMentalAgeAt97thCentile =>
+        patient.dasiiMentalAgeAt97thCentile ?? '',
+      ReportColumn.other => patient.other ?? '',
+      ReportColumn.picc => _boolLabel(patient.picc),
+      ReportColumn.user => patient.user ?? '',
+      ReportColumn.statusOk => _boolLabel(patient.statusOk),
     };
   }
 }
@@ -291,6 +501,14 @@ String _dateLabel(DateTime? value) {
 }
 
 String _numberLabel(double? value) => value?.toStringAsFixed(1) ?? '';
+
+String _listLabel(List<String>? values) => values?.join(', ') ?? '';
+
+String _boolLabel(bool? value) => value == null
+    ? ''
+    : value
+    ? 'Yes'
+    : 'No';
 
 String _clinicalNotes(PatientStay patient) => [
   patient.sepsis,

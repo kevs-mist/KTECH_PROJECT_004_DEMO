@@ -144,6 +144,58 @@ void main() {
     );
     expect(ReportColumn.length.value(patient, hideIdentifiers: true), '45.0');
   });
+
+  test('all admission and discharge columns render and mask identifiers', () {
+    final patient =
+        _patient(
+          id: 'all-fields',
+          name: 'Example Mother',
+          baby: 'B/O Example Mother',
+          admissionDate: DateTime(2026, 10, 1),
+          branch: Branch.arpanMother,
+          birthType: BirthType.single,
+          weight: 2.5,
+          length: 45,
+          notes: 'Clinical notes',
+        ).copyWith(
+          contactNumber2: '1234567890',
+          address: 'Private address',
+          pin: '380001',
+          ipNo: 'IP-123',
+          dateOfBirth: DateTime(2026, 9, 1),
+          admissionWeight: 2.2,
+          maternalMorbidities: ['Hypertension'],
+          maternalReceivedAntibiotics: true,
+          maternalAntibiotics: ['Ampicillin'],
+        );
+
+    for (final column in ReportColumn.values) {
+      expect(column.label, isNotEmpty);
+      expect(
+        () => column.value(patient, hideIdentifiers: false),
+        returnsNormally,
+        reason: 'Failed to render ${column.name}',
+      );
+    }
+
+    expect(
+      ReportColumn.admissionWeight.value(patient, hideIdentifiers: false),
+      '2.2',
+    );
+    expect(
+      ReportColumn.maternalAntibiotics.value(patient, hideIdentifiers: false),
+      'Ampicillin',
+    );
+    for (final column in [
+      ReportColumn.contactNumber2,
+      ReportColumn.address,
+      ReportColumn.pin,
+      ReportColumn.ipNumber,
+      ReportColumn.dateOfBirth,
+    ]) {
+      expect(column.value(patient, hideIdentifiers: true), 'Hidden');
+    }
+  });
 }
 
 PatientStay _patient({

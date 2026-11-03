@@ -10,18 +10,15 @@ void main() {
   test('demo seed remains small and contains multiple-birth examples', () {
     final patients = DemoSeed.generateSeedData();
 
-    expect(patients, hasLength(24));
-    expect(
-      patients.where((patient) => patient.dod == null).length,
-      greaterThanOrEqualTo(4),
-    );
+    expect(patients, hasLength(6));
+    expect(patients.where((patient) => patient.dod == null).length, 1);
     expect(
       patients.where((patient) => patient.birthType == BirthType.twin),
-      hasLength(2),
+      hasLength(1),
     );
     expect(
       patients.where((patient) => patient.birthType == BirthType.triplet),
-      hasLength(3),
+      hasLength(1),
     );
   });
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../../app/theme.dart';
 import '../../../models/user_role.dart';
 import '../auth_form_state.dart';
@@ -16,10 +17,7 @@ import '../demo_role_dialog.dart';
 class LoginScreen extends ConsumerStatefulWidget {
   final UserRole role;
 
-  const LoginScreen({
-    super.key,
-    required this.role,
-  });
+  const LoginScreen({super.key, required this.role});
 
   @override
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
@@ -63,7 +61,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
 
     // Save email to shared state
-    ref.read(authFormStateProvider.notifier).setEmail(_emailController.text.trim());
+    ref
+        .read(authFormStateProvider.notifier)
+        .setEmail(_emailController.text.trim());
 
     try {
       final authRepository = FakeAuthRepository();
@@ -134,9 +134,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               const SizedBox(height: AppTheme.space8),
               Text(
                 'Enter your credentials to access the admissions register.',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppTheme.textSecondary,
-                    ),
+                style: Theme.of(context).textTheme.bodyMedium
+                    ?.copyWith(color: AppTheme.textSecondary),
               ),
               const SizedBox(height: AppTheme.space32),
               if (_errorMessage != null) ...[
@@ -188,14 +187,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
               ),
               const SizedBox(height: AppTheme.space24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+              Wrap(
+                alignment: WrapAlignment.center,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   Text(
                     "Don't have an account? ",
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppTheme.textSecondary,
-                        ),
+                    style: Theme.of(context).textTheme.bodyMedium
+                        ?.copyWith(color: AppTheme.textSecondary),
                   ),
                   TextButton(
                     onPressed: _handleRegister,

@@ -1179,24 +1179,31 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
                   hintText: '0.000',
                 ),
                 const SizedBox(height: AppTheme.space16),
-                // Field 21: Head Circumference
-                _buildTextField(
-                  label: 'Head Circumference (cm)',
-                  controller: _headCircumferenceController,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  hintText: '0.0',
-                ),
-                const SizedBox(height: AppTheme.space16),
-                // Field 22: Length
-                _buildTextField(
-                  label: 'Length (cm)',
-                  controller: _lengthController,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  hintText: '0.0',
+                // Fields 21-22: Head Circumference and Length
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildTextField(
+                        label: 'Head Circumference (cm)',
+                        controller: _headCircumferenceController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        hintText: '0.0',
+                      ),
+                    ),
+                    const SizedBox(width: AppTheme.space16),
+                    Expanded(
+                      child: _buildTextField(
+                        label: 'Length (cm)',
+                        controller: _lengthController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        hintText: '0.0',
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: AppTheme.space16),
                 // Field 22: Maternal Morbidities (multi)

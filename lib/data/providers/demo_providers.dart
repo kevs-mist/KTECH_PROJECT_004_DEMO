@@ -9,9 +9,11 @@ import '../../features/admissions/models/patient_stay.dart';
 import '../../features/auth/auth_controller.dart';
 import '../api/admissions_api.dart';
 import '../api/default_report_pdf_export_api.dart';
+import '../api/default_report_excel_export_api.dart';
 import '../api/mock_admissions_api.dart';
 import '../api/mock_auth_api.dart';
 import '../api/report_pdf_export_api.dart';
+import '../api/report_excel_export_api.dart';
 import '../../features/discharge/document/discharge_document_api.dart';
 import '../../features/discharge/document/local_discharge_document_api.dart';
 
@@ -55,6 +57,11 @@ final reportRepositoryProvider = Provider<ReportRepository>((ref) {
 /// PDF export API for reports tab
 final reportPdfExportApiProvider = Provider<ReportPdfExportApi>((ref) {
   return DefaultReportPdfExportApi();
+});
+
+/// Excel export API for reports tab
+final reportExcelExportApiProvider = Provider<ReportExcelExportApi>((ref) {
+  return DefaultReportExcelExportApi();
 });
 
 /// Discharge Document API for discharge summary PDF generation & export

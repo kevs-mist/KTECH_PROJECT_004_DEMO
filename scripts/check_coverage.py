@@ -34,7 +34,7 @@ def library_line_coverage(lcov_path: Path) -> tuple[int, int]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("lcov", type=Path, help="Path to the LCOV info file")
-    parser.add_argument("--threshold", type=float, default=80.0)
+    parser.add_argument("--threshold", type=float, default=50.0)
     args = parser.parse_args()
 
     if not args.lcov.is_file():

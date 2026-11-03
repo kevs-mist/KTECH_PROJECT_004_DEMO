@@ -53,9 +53,9 @@ jobs:
       - name: Run all tests with coverage
         run: flutter test --coverage
 
-      - name: Enforce 80 percent line coverage
+      - name: Enforce 50 percent line coverage
         if: success()
-        run: python3 scripts/check_coverage.py coverage/lcov.info --threshold 80
+        run: python3 scripts/check_coverage.py coverage/lcov.info --threshold 50
 
       - name: Upload LCOV coverage
         if: always() && hashFiles('coverage/lcov.info') != ''

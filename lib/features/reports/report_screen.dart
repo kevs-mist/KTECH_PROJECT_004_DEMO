@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/theme.dart';
 import '../../backend/admissions/admissions_providers.dart';
+import '../../backend/reports/field_config.dart';
 import '../../backend/reports/report_models.dart';
 import '../../features/admissions/models/patient_stay.dart';
 import '../../features/auth/auth_controller.dart';
@@ -39,19 +40,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
   bool _presentationMode = false;
   int _pageIndex = 0;
   int _pageSize = 25;
-  List<ReportColumn> _columns = [
-    ReportColumn.serialNumber,
-    ReportColumn.babyName,
-    ReportColumn.branch,
-    ReportColumn.admissionType,
-    ReportColumn.birthType,
-    ReportColumn.admissionDate,
-    ReportColumn.dischargeDate,
-    ReportColumn.dischargeType,
-    ReportColumn.birthWeight,
-    ReportColumn.length,
-    ReportColumn.headCircumference,
-  ];
+  List<ReportColumn> _columns = FieldConfigRegistry.filterRemovedColumns(ReportColumn.values.toList());
   final Map<String, _SavedReportView> _savedViews = {};
   Future<ReportPage>? _pageFuture;
 
@@ -78,6 +67,8 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
   void initState() {
     super.initState();
     final now = DateTime.now();
+    // Filter out removed columns from default selection
+    final filteredColumns = FieldConfigRegistry.filterRemovedColumns(_columns);
     _savedViews['This month - Arpan Mother'] = _SavedReportView(
       admissionFrom: DateTime(now.year, now.month),
       admissionTo: DateTime(now.year, now.month + 1, 0),
@@ -95,7 +86,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
       maximumLength: '',
       diagnosis: '',
       search: '',
-      columns: List.of(_columns),
+      columns: List.of(filteredColumns),
     );
     _pageFuture = _loadPage();
   }
@@ -245,7 +236,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
       _maximumLengthController.text = view.maximumLength;
       _diagnosisController.text = view.diagnosis;
       _searchController.text = view.search;
-      _columns = List.of(view.columns);
+      _columns = FieldConfigRegistry.filterRemovedColumns(List.of(view.columns));
       _pageIndex = 0;
       _pageFuture = _loadPage();
     });
@@ -253,6 +244,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
 
   Future<void> _showColumnPicker() async {
     final selection = Set<ReportColumn>.of(_columns);
+    final availableColumns = FieldConfigRegistry.filterRemovedColumns(ReportColumn.values.toList());
     final result = await showDialog<Set<ReportColumn>>(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -263,7 +255,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
-                children: ReportColumn.values.map((column) {
+                children: availableColumns.map((column) {
                   return CheckboxListTile(
                     dense: true,
                     contentPadding: EdgeInsets.zero,
@@ -294,9 +286,9 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
         ),
       ),
     );
-    if (result == null || result.isEmpty || !mounted) return;
+    if (result == null || !mounted) return;
     setState(
-      () => _columns = ReportColumn.values.where(result.contains).toList(),
+      () => _columns = availableColumns.where(result.contains).toList(),
     );
   }
 
@@ -312,13 +304,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
     if (mounted) setState(() => _presentationMode = true);
   }
 
-  void _notReady(String format) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$format export is not connected in this mock build.'),
-      ),
-    );
-  }
+
 
   Future<void> _handlePdfExport({required bool isPrint}) async {
     try {
@@ -342,7 +328,9 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
         ),
       );
 
-      final page = await ref.read(reportRepositoryProvider).search(
+      final page = await ref
+          .read(reportRepositoryProvider)
+          .search(
             ReportPageRequest(
               filters: _filters,
               sortField: _sortField,
@@ -394,6 +382,72 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
     }
   }
 
+  Future<void> _handleExcelExport() async {
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              ),
+              SizedBox(width: 12),
+              Text('Generating Excel report...'),
+            ],
+          ),
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      final page = await ref
+          .read(reportRepositoryProvider)
+          .search(
+            ReportPageRequest(
+              filters: _filters,
+              sortField: _sortField,
+              ascending: _ascending,
+              pageIndex: 0,
+              pageSize: 1000,
+            ),
+          );
+
+      final auth = ref.read(authControllerProvider);
+      final exportApi = ref.read(reportExcelExportApiProvider);
+
+      final savedPath = await exportApi.exportAndSaveExcel(
+        patients: page.rows,
+        filters: _filters,
+        columns: _columns,
+        hideIdentifiers: _hideIdentifiers,
+        generatedBy: auth.userName ?? 'Clinical Staff',
+      );
+
+      if (mounted && savedPath != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Report saved successfully to: $savedPath'),
+            backgroundColor: AppTheme.success,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to generate Excel: $e'),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _showPdfExportDialog() async {
     await showDialog(
       context: context,
@@ -422,7 +476,11 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
                 ),
                 child: const Row(
                   children: [
-                    Icon(Icons.visibility_off, size: 16, color: AppTheme.inkTeal),
+                    Icon(
+                      Icons.visibility_off,
+                      size: 16,
+                      color: AppTheme.inkTeal,
+                    ),
                     SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -550,7 +608,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
             ),
           ),
           OutlinedButton.icon(
-            onPressed: () => _notReady('Excel'),
+            onPressed: _handleExcelExport,
             icon: const Icon(Icons.table_chart_outlined),
             label: const Text('Excel'),
           ),
@@ -795,40 +853,42 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
           ),
         ),
         Expanded(
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: SingleChildScrollView(
-              child: DataTable(
-                sortAscending: _ascending,
-                sortColumnIndex: _sortColumnIndex,
-                columns: _columns.map((column) {
-                  return DataColumn(
-                    label: Text(column.label),
-                    numeric: _numericColumn(column),
-                    onSort: (_, ascending) => _sortBy(column, ascending),
-                  );
-                }).toList(),
-                rows: page.rows.map((patient) {
-                  return DataRow(
-                    cells: _columns
-                        .map(
-                          (column) => DataCell(
-                            Text(
-                              column.value(
-                                patient,
-                                hideIdentifiers: _hideIdentifiers,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        )
-                        .toList(),
-                  );
-                }).toList(),
-              ),
-            ),
-          ),
+          child: _columns.isEmpty
+              ? const Center(child: Text('No columns selected'))
+              : SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: SingleChildScrollView(
+                    child: DataTable(
+                      sortAscending: _ascending,
+                      sortColumnIndex: _sortColumnIndex,
+                      columns: _columns.map((column) {
+                        return DataColumn(
+                          label: Text(column.label),
+                          numeric: _numericColumn(column),
+                          onSort: (_, ascending) => _sortBy(column, ascending),
+                        );
+                      }).toList(),
+                      rows: page.rows.map((patient) {
+                        return DataRow(
+                          cells: _columns
+                              .map(
+                                (column) => DataCell(
+                                  Text(
+                                    column.value(
+                                      patient,
+                                      hideIdentifiers: _hideIdentifiers,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ),
         ),
       ],
     );
@@ -941,47 +1001,52 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
                 ),
               ),
               Expanded(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: SingleChildScrollView(
-                    child: DataTable(
-                      headingRowHeight: 64,
-                      dataRowMinHeight: 60,
-                      dataRowMaxHeight: 88,
-                      columns: _columns
-                          .map(
-                            (column) => DataColumn(
-                              label: Text(
-                                column.label,
-                                style: Theme.of(context).textTheme.titleMedium,
-                              ),
-                            ),
-                          )
-                          .toList(),
-                      rows: page.rows
-                          .map(
-                            (patient) => DataRow(
-                              cells: _columns
-                                  .map(
-                                    (column) => DataCell(
-                                      Text(
-                                        column.value(
-                                          patient,
-                                          hideIdentifiers: _hideIdentifiers,
-                                        ),
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleMedium,
-                                      ),
+                child: _columns.isEmpty
+                    ? const Center(child: Text('No columns selected'))
+                    : SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: SingleChildScrollView(
+                          child: DataTable(
+                            headingRowHeight: 64,
+                            dataRowMinHeight: 60,
+                            dataRowMaxHeight: 88,
+                            columns: _columns
+                                .map(
+                                  (column) => DataColumn(
+                                    label: Text(
+                                      column.label,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleMedium,
                                     ),
-                                  )
-                                  .toList(),
-                            ),
-                          )
-                          .toList(),
-                    ),
-                  ),
-                ),
+                                  ),
+                                )
+                                .toList(),
+                            rows: page.rows
+                                .map(
+                                  (patient) => DataRow(
+                                    cells: _columns
+                                        .map(
+                                          (column) => DataCell(
+                                            Text(
+                                              column.value(
+                                                patient,
+                                                hideIdentifiers:
+                                                    _hideIdentifiers,
+                                              ),
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .titleMedium,
+                                            ),
+                                          ),
+                                        )
+                                        .toList(),
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                        ),
+                      ),
               ),
               Padding(
                 padding: const EdgeInsets.all(AppTheme.space8),

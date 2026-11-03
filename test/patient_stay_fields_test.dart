@@ -22,6 +22,7 @@ void main() {
       maternalReceivedAntibiotics: true,
       maternalAntibiotics: const ['Gentamicin', 'Others'],
       maternalAntibioticsOther: 'Cefixime',
+      headCircumference: 33.2,
       length: 45.5,
       fileName: 'birth-record.pdf',
       adductaAngle: 'Normal',
@@ -52,6 +53,7 @@ void main() {
     expect(restored.dischargeType, DischargeType.shift);
     expect(restored.shiftedTo, 'Receiving Hospital');
     expect(restored.shiftReason, 'Higher level of care');
+    expect(restored.headCircumference, 33.2);
     expect(restored.length, 45.5);
     expect(restored.fileName, 'birth-record.pdf');
     expect(restored.adductaAngle, 'Normal');

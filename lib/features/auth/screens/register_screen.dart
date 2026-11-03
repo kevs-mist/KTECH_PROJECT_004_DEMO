@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../../app/theme.dart';
 import '../../../models/user_role.dart';
 import '../auth_form_state.dart';
@@ -16,10 +17,7 @@ import '../widgets/back_link.dart';
 class RegisterScreen extends ConsumerStatefulWidget {
   final UserRole role;
 
-  const RegisterScreen({
-    super.key,
-    required this.role,
-  });
+  const RegisterScreen({super.key, required this.role});
 
   @override
   ConsumerState<RegisterScreen> createState() => _RegisterScreenState();
@@ -67,7 +65,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     });
 
     // Save email to shared state
-    ref.read(authFormStateProvider.notifier).setEmail(_emailController.text.trim());
+    ref
+        .read(authFormStateProvider.notifier)
+        .setEmail(_emailController.text.trim());
 
     try {
       final authRepository = FakeAuthRepository();
@@ -129,9 +129,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 const SizedBox(height: AppTheme.space8),
                 Text(
                   'Enter your details to create a new account.',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppTheme.textSecondary,
-                      ),
+                  style: Theme.of(context).textTheme.bodyMedium
+                      ?.copyWith(color: AppTheme.textSecondary),
                 ),
                 const SizedBox(height: AppTheme.space32),
                 if (_errorMessage != null) ...[
@@ -151,7 +150,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   hint: 'you@example.com',
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
-                  validator: (value) => Validators.validateEmail(value)?.message,
+                  validator: (value) =>
+                      Validators.validateEmail(value)?.message,
                   textInputAction: TextInputAction.next,
                 ),
                 PasswordField(
@@ -165,9 +165,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   label: 'Confirm password',
                   controller: _confirmPasswordController,
                   validator: (value) => Validators.validateConfirmPassword(
-                        _passwordController.text,
-                        value,
-                      )?.message,
+                    _passwordController.text,
+                    value,
+                  )?.message,
                   textInputAction: TextInputAction.next,
                 ),
                 AuthTextField(
@@ -197,14 +197,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   isLoading: _isLoading,
                 ),
                 const SizedBox(height: AppTheme.space24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     Text(
                       'Already have an account? ',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppTheme.textSecondary,
-                          ),
+                      style: Theme.of(context).textTheme.bodyMedium
+                          ?.copyWith(color: AppTheme.textSecondary),
                     ),
                     TextButton(
                       onPressed: _handleBack,
