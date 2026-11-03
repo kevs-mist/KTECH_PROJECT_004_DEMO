@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - "**"
+    tags:
+      - "v*"
   pull_request:
     branches:
       - "**"
@@ -69,6 +71,9 @@ jobs:
   windows-build:
     name: windows-build
     runs-on: windows-latest
+    needs: tests
+    permissions:
+      contents: write
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -91,3 +96,11 @@ jobs:
           path: build/windows/ktech_project_004-windows-x64.zip
           if-no-files-found: error
           retention-days: 14
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: K-TECH Registry ${{ github.ref_name }}
+          generate_release_notes: true
+          files: build/windows/ktech_project_004-windows-x64.zip

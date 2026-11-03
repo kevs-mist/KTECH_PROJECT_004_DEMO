@@ -60,6 +60,8 @@ flutter run -d windows
 
 To create a distributable Windows build, run `./scripts/package-windows.ps1` in PowerShell and share the generated `build/windows/ktech_project_004-windows-x64.zip`. Extract the entire archive and run `ktech_project_004.exe` from the extracted folder. Do not copy or distribute the `.exe` by itself; the Flutter runtime, plugin DLLs, and `data` directory must remain alongside it. CI also builds this bundle on Windows and uploads it as the `ktech-project-004-windows-x64` artifact.
 
+To publish a GitHub Release automatically, push a version tag such as `v1.0.0`. CI publishes the Windows ZIP only after analysis, tests, and the Windows release build succeed. Ordinary branch pushes build and upload a CI artifact but do not publish a release.
+
 To enable the compile-time demo experience:
 
 ```powershell
