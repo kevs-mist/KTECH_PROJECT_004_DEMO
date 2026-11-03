@@ -1,70 +1,10 @@
-import 'dart:math';
-
 import '../../features/admissions/models/patient_stay.dart';
 
 class DemoSeed {
-  static const List<String> _indianNames = [
-    'Priya Sharma',
-    'Anita Patel',
-    'Kavita Singh',
-    'Meera Joshi',
-    'Sunita Reddy',
-    'Rani Gupta',
-    'Lakshmi Iyer',
-    'Savita Desai',
-  ];
-
-  static const List<String> _deliveryPlaces = [
-    'Munshi',
-    'Bavishi',
-    'Sheth',
-    'Amin',
-    'Mayflower',
-    'Rupal Parikh',
-    'Sushrusha hospital',
-    'Dr.Akshay Shah',
-    'Dr. Kiran Desai',
-    'Dr. Suresh Kothari',
-  ];
-
-  static const List<String> _districts = [
-    'Ahmedabad',
-    'Gandhinagar',
-    'Surat',
-    'Vadodara',
-    'Rajkot',
-    'Bhavnagar',
-    'Jamnagar',
-    'Junagadh',
-  ];
-
-  static const List<String> _areas = [
-    'Navrangpura',
-    'Paldi',
-    'Bodakdev',
-    'Prahlad Nagar',
-    'Satellite',
-    'Vastrapur',
-    'Maninagar',
-    'Navajivan',
-  ];
-
-  static String _randomPhoneNumber() {
-    final prefixes = ['6', '7', '8', '9'];
-    final prefix = prefixes[Random().nextInt(4)];
-    final rest = List.generate(9, (_) => Random().nextInt(10).toString()).join();
-    return '$prefix$rest';
-  }
-
-  static String _randomPin() {
-    return List.generate(6, (_) => Random().nextInt(10).toString()).join();
-  }
-
   static int _financialYearForDate(DateTime date) =>
       date.month >= 4 ? date.year : date.year - 1;
 
   static List<PatientStay> generateSeedData() {
-    final random = Random(42);
     final patients = <PatientStay>[];
     final now = DateTime.now();
 
@@ -562,7 +502,12 @@ class DemoSeed {
         financialYear: _financialYearForDate(doa),
         prefix: data['prefix'] as Prefix,
         mothersName: data['name'] as String,
-        babyName: '${data['prefix'] == Prefix.so ? 'S/O' : data['prefix'] == Prefix.do_ ? 'D/O' : 'B/O'} ${data['name']}',
+        babyName:
+            '${data['prefix'] == Prefix.so
+                ? 'S/O'
+                : data['prefix'] == Prefix.do_
+                ? 'D/O'
+                : 'B/O'} ${data['name']}',
         branch: data['branch'] as Branch,
         admissionType: data['admissionType'] as AdmissionType,
         admissionHistory: data['admissionHistory'] as AdmissionHistory,
@@ -611,7 +556,8 @@ class DemoSeed {
         respiratorySystem: data['respiratorySystem'] as List<String>?,
         respiratorySystemOther: data['respiratorySystemOther'] as String?,
         cardiovascularSystem: data['cardiovascularSystem'] as String?,
-        maternalReceivedAntibiotics: data['maternalReceivedAntibiotics'] as bool?,
+        maternalReceivedAntibiotics:
+            data['maternalReceivedAntibiotics'] as bool?,
         maternalAntibiotics: data['maternalAntibiotics'] as List<String>?,
         maternalAntibioticsOther: data['maternalAntibioticsOther'] as String?,
         sepsis: data['sepsis'] as String?,
@@ -634,10 +580,14 @@ class DemoSeed {
         cdcHeadControl: data['cdcHeadControl'] as String?,
         cdcSitting: data['cdcSitting'] as String?,
         cdcStanding: data['cdcStanding'] as String?,
-        dasiiMotorAgeAt50thCentile: data['dasiiMotorAgeAt50thCentile'] as String?,
-        dasiiMotorAgeAt97thCentile: data['dasiiMotorAgeAt97thCentile'] as String?,
-        dasiiMentalAgeAt50thCentile: data['dasiiMentalAgeAt50thCentile'] as String?,
-        dasiiMentalAgeAt97thCentile: data['dasiiMentalAgeAt97thCentile'] as String?,
+        dasiiMotorAgeAt50thCentile:
+            data['dasiiMotorAgeAt50thCentile'] as String?,
+        dasiiMotorAgeAt97thCentile:
+            data['dasiiMotorAgeAt97thCentile'] as String?,
+        dasiiMentalAgeAt50thCentile:
+            data['dasiiMentalAgeAt50thCentile'] as String?,
+        dasiiMentalAgeAt97thCentile:
+            data['dasiiMentalAgeAt97thCentile'] as String?,
         other: data['other'] as String?,
         picc: data['picc'] as bool?,
         user: 'Demo User',
