@@ -98,9 +98,11 @@ jobs:
           retention-days: 14
 
       - name: Publish GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: github.event_name == 'push'
         uses: softprops/action-gh-release@v2
         with:
-          name: K-TECH Registry ${{ github.ref_name }}
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || format('windows-{0}', github.run_number) }}
+          target_commitish: ${{ github.sha }}
+          name: ${{ github.ref_type == 'tag' && format('K-TECH Registry {0}', github.ref_name) || format('K-TECH Registry Build {0}', github.run_number) }}
           generate_release_notes: true
           files: build/windows/ktech_project_004-windows-x64.zip
