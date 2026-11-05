@@ -8,6 +8,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:pdfrx/pdfrx.dart';
+import 'package:docx_file_viewer/docx_file_viewer.dart';
 
 import '../../app/theme.dart';
 import '../../core/aggregation.dart';
@@ -733,15 +734,7 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
 
   bool _supportsDocumentPreview(PlatformFile file) {
     final extension = (file.extension ?? '').toLowerCase();
-    return {
-      'pdf',
-      'png',
-      'jpg',
-      'jpeg',
-      'webp',
-      'gif',
-      'bmp',
-    }.contains(extension);
+    return {'pdf', 'docx'}.contains(extension);
   }
 
   Widget _buildOpenDocumentButton(String path) {
@@ -774,17 +767,10 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
     Widget content;
     if (extension == 'pdf' && path != null) {
       content = PdfViewer.file(path);
-    } else if ({
-          'png',
-          'jpg',
-          'jpeg',
-          'webp',
-          'gif',
-          'bmp',
-        }.contains(extension) &&
-        path != null) {
-      content = InteractiveViewer(
-        child: Image.file(File(path), fit: BoxFit.contain),
+    } else if ({'docx'}.contains(extension) && path != null) {
+      content = DocxView.file(
+        File(path),
+        config: const DocxViewConfig(enableSearch: true, enableZoom: true),
       );
     } else {
       content = Center(
