@@ -307,10 +307,10 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
           ),
         if (patient.ans != null)
           _DetailRow(label: 'ANS', value: _ansToString(patient.ans!)),
-        if (patient.antentalScan != null && patient.antentalScan!.isNotEmpty)
+        if (patient.antenatalScan != null && patient.antenatalScan!.isNotEmpty)
           _DetailRow(
             label: 'Antental Scan',
-            value: patient.antentalScan!.join(', '),
+            value: patient.antenatalScan!.join(', '),
           ),
         if (patient.modeOfDelivery != null)
           _DetailRow(

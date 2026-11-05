@@ -306,7 +306,8 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
           rowCount: rowCount,
           userId: auth.userName ?? 'local-user',
         );
-    if (mounted) setState(() => _presentationMode = true);
+    if (!mounted) return;
+    setState(() => _presentationMode = true);
   }
 
   Future<void> _handlePdfExport({required bool isPrint}) async {

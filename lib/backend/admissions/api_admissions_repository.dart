@@ -32,6 +32,10 @@ class ApiAdmissionsRepository implements AdmissionsRepository {
       _mockStore.createAdmission(patient);
 
   @override
+  Future<PatientStay> updateAdmission(PatientStay patient) =>
+      _mockStore.updateAdmission(patient);
+
+  @override
   Future<PatientStay> updatePatient(PatientStay patient) =>
       _mockStore.updatePatient(patient);
 

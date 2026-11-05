@@ -46,9 +46,13 @@ class DemoAdmissionsRepository implements AdmissionsRepository {
   }
 
   @override
-  Future<PatientStay> updatePatient(PatientStay patient) async {
-    final id = patient.id ?? '';
-    return _api.dischargeAdmission(id, {'patient': patient});
+  Future<PatientStay> updateAdmission(PatientStay patient) {
+    return _api.updateAdmission(patient);
+  }
+
+  @override
+  Future<PatientStay> updatePatient(PatientStay patient) {
+    return _api.updateAdmission(patient);
   }
 
   @override

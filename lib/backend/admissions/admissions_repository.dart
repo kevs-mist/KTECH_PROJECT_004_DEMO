@@ -19,6 +19,10 @@ abstract class AdmissionsRepository {
   // Create new admission
   Future<PatientStay> createAdmission(PatientStay patient);
 
+  // Update an existing admission record (demographics and discharge fields)
+  // without changing its admission status implicitly.
+  Future<PatientStay> updateAdmission(PatientStay patient);
+
   // Update patient (for discharge)
   Future<PatientStay> updatePatient(PatientStay patient);
 

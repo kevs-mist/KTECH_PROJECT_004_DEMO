@@ -7,6 +7,7 @@ $repositoryRoot = Split-Path -Parent $PSScriptRoot
 $bundlePath = Join-Path $repositoryRoot 'build\windows\x64\runner\Release'
 $requiredPlugins = @(
   'flutter_windows.dll',
+  'pdfium.dll',
   'screen_retriever_plugin.dll',
   'window_manager_plugin.dll',
   'printing_plugin.dll',

@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/kevs-mist/KTECH_PROJECT_004_DEMO/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/kevs-mist/KTECH_PROJECT_004_DEMO/actions/workflows/ci.yml)
 ![Coverage policy](https://img.shields.io/badge/coverage%20gate-50%25-informational)
-![License](https://img.shields.io/badge/license-not%20selected-lightgrey)
+![License](https://img.shields.io/badge/license-MIT-blue)
 
 ## Overview
 
@@ -92,16 +92,12 @@ For `main` branch protection, require pull requests and require the `CI / analyz
 
 ## Branching Strategy
 
-The requested branch names can be used as parallel work streams without pretending they are separate deployable packages:
+The application uses a straightforward branch structure for development:
 
-- `main`: reviewed, integrated application.
-- `ui`: Flutter UI work based on `main`.
-- `backend`: Flutter repositories, data, and reporting work based on `main`; this is not a Node server.
-- `ui-screens`: screen-specific work based on `ui` (`ui/screens` cannot coexist with the `ui` branch in Git).
-- `ui-components`: shared widget work based on `ui` (`ui/components` has the same Git ref-name conflict).
-- `mock-api`: temporary work on the existing in-process mock/demo data path, based on `main`.
+- `main`: reviewed, integrated application
+- Feature branches created from `main` for focused work
 
-Create the branches after the complete Flutter baseline has been committed to `main`. The full creation and push sequence is in [PUSH_PLAN.md](PUSH_PLAN.md). The push helper limits successful pushes to one main-level feature branch and two UI sub-branches per local calendar day. README-first publication is a separate manual Day 1 operation.
+Create focused branches from `main`, keep commits small with conventional prefixes (`feat:`, `fix:`, `test:`, `ci:`, `docs:`, `chore:`), and open pull requests after running analysis and tests.
 
 ## Contributing
 
@@ -113,4 +109,4 @@ Create the branches after the complete Flutter baseline has been committed to `m
 
 ## License
 
-No license has been selected for this repository. All rights are reserved by default; do not redistribute or reuse the software until the owner adds an explicit license.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

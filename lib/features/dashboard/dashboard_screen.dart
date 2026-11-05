@@ -87,13 +87,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         .where((p) => p.birthType == BirthType.triplet)
         .length;
     final admissionsToday = patients
-        .where((p) => p.doa.isAfter(todayStart) && p.doa.isBefore(todayEnd))
+        .where(
+          (p) => !p.doa.isBefore(todayStart) && p.doa.isBefore(todayEnd),
+        )
         .length;
     final dischargesToday = patients
         .where(
           (p) =>
               p.dod != null &&
-              p.dod!.isAfter(todayStart) &&
+              !p.dod!.isBefore(todayStart) &&
               p.dod!.isBefore(todayEnd),
         )
         .length;

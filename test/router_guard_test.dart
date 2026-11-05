@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ktech_project_004/app/router.dart';
+import 'package:ktech_project_004/backend/admissions/demo_admissions_repository.dart';
+import 'package:ktech_project_004/data/providers/demo_providers.dart';
 import 'package:ktech_project_004/features/auth/auth_controller.dart';
 import 'package:ktech_project_004/models/user_role.dart';
 
@@ -43,7 +45,13 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    final container = ProviderContainer();
+    final container = ProviderContainer(
+      overrides: [
+        admissionsRepositoryProvider.overrideWithValue(
+          DemoAdmissionsRepository(),
+        ),
+      ],
+    );
     addTearDown(container.dispose);
 
     // Set demo doctor auth

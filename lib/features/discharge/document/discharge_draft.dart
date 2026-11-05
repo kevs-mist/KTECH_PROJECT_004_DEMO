@@ -33,8 +33,8 @@ class DischargeDraft {
   // Clinical Details & Interventions
   final List<String> maternalMorbidities;
   final String maternalMorbiditiesOther;
-  final List<String> antentalScan;
-  final String antentalScanOther;
+  final List<String> antenatalScan;
+  final String antenatalScanOther;
   final List<String> respiratorySystem;
   final String respiratorySystemOther;
   final Surfactant? surfactant;
@@ -101,8 +101,8 @@ class DischargeDraft {
     this.shiftReason = '',
     this.maternalMorbidities = const [],
     this.maternalMorbiditiesOther = '',
-    this.antentalScan = const [],
-    this.antentalScanOther = '',
+    this.antenatalScan = const [],
+    this.antenatalScanOther = '',
     this.respiratorySystem = const [],
     this.respiratorySystemOther = '',
     this.surfactant,
@@ -166,8 +166,8 @@ class DischargeDraft {
     String? shiftReason,
     List<String>? maternalMorbidities,
     String? maternalMorbiditiesOther,
-    List<String>? antentalScan,
-    String? antentalScanOther,
+    List<String>? antenatalScan,
+    String? antenatalScanOther,
     List<String>? respiratorySystem,
     String? respiratorySystemOther,
     Surfactant? surfactant,
@@ -232,8 +232,8 @@ class DischargeDraft {
       maternalMorbidities: maternalMorbidities ?? this.maternalMorbidities,
       maternalMorbiditiesOther:
           maternalMorbiditiesOther ?? this.maternalMorbiditiesOther,
-      antentalScan: antentalScan ?? this.antentalScan,
-      antentalScanOther: antentalScanOther ?? this.antentalScanOther,
+      antenatalScan: antenatalScan ?? this.antenatalScan,
+      antenatalScanOther: antenatalScanOther ?? this.antenatalScanOther,
       respiratorySystem: respiratorySystem ?? this.respiratorySystem,
       respiratorySystemOther:
           respiratorySystemOther ?? this.respiratorySystemOther,
@@ -299,8 +299,8 @@ class DischargeDraft {
       shiftReason: patient.shiftReason ?? '',
       maternalMorbidities: patient.maternalMorbidities ?? const [],
       maternalMorbiditiesOther: patient.maternalMorbiditiesOther ?? '',
-      antentalScan: patient.antentalScan ?? const [],
-      antentalScanOther: patient.antentalScanOther ?? '',
+      antenatalScan: patient.antenatalScan ?? const [],
+      antenatalScanOther: patient.antenatalScanOther ?? '',
       respiratorySystem: patient.respiratorySystem ?? const [],
       respiratorySystemOther: patient.respiratorySystemOther ?? '',
       surfactant: patient.surfactant,
@@ -366,8 +366,8 @@ class DischargeDraft {
       'maternalMorbidities': maternalMorbidities.isNotEmpty ? maternalMorbidities : null,
       'maternalMorbiditiesOther': maternalMorbiditiesOther.isNotEmpty ? maternalMorbiditiesOther : null,
       'ans': ans,
-      'antentalScan': antentalScan.isNotEmpty ? antentalScan : null,
-      'antentalScanOther': antentalScanOther.isNotEmpty ? antentalScanOther : null,
+      'antenatalScan': antenatalScan.isNotEmpty ? antenatalScan : null,
+      'antenatalScanOther': antenatalScanOther.isNotEmpty ? antenatalScanOther : null,
       'modeOfDelivery': modeOfDelivery,
       'respiratorySystem': respiratorySystem.isNotEmpty ? respiratorySystem : null,
       'respiratorySystemOther': respiratorySystemOther.isNotEmpty ? respiratorySystemOther : null,
