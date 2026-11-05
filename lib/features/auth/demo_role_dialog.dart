@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/theme.dart';
-import '../../data/providers/demo_providers.dart';
 import '../../models/user_role.dart';
 import 'auth_controller.dart';
 
@@ -51,12 +50,9 @@ class DemoRoleDialog extends ConsumerWidget {
                 description: 'Full access including admissions and discharge',
                 badgeText: 'Full access',
                 onTap: () async {
-                  final session = await ref
-                      .read(mockAuthApiProvider)
-                      .demoLogin(UserRole.dataEntry);
                   ref.read(authControllerProvider.notifier).startDemo(
-                        role: session.role,
-                        userName: session.userName,
+                        role: UserRole.dataEntry,
+                        userName: 'Demo Data Entry',
                       );
                   if (context.mounted) {
                     Navigator.of(context).pop();
@@ -71,12 +67,9 @@ class DemoRoleDialog extends ConsumerWidget {
                 description: 'View patients and dashboard in read-only mode',
                 badgeText: 'Read only',
                 onTap: () async {
-                  final session = await ref
-                      .read(mockAuthApiProvider)
-                      .demoLogin(UserRole.doctor);
                   ref.read(authControllerProvider.notifier).startDemo(
-                        role: session.role,
-                        userName: session.userName,
+                        role: UserRole.doctor,
+                        userName: 'Dr. Demo User',
                       );
                   if (context.mounted) {
                     Navigator.of(context).pop();
