@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -240,11 +243,20 @@ void main() {
   });
 
   test('mock API provider persists records in its own store', () async {
+    final directory = await Directory.systemTemp.createTemp('mock-api-test-');
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    const channel = MethodChannel('plugins.flutter.io/path_provider');
+    messenger.setMockMethodCallHandler(channel, (call) async => directory.path);
+    await File('${directory.path}/ktech_clinical_registry.data').writeAsString('[]');
+    addTearDown(() async {
+      messenger.setMockMethodCallHandler(channel, null);
+      await directory.delete(recursive: true);
+    });
     final container = ProviderContainer();
     addTearDown(container.dispose);
 
     final api = container.read(mockApiRepositoryProvider);
-    await api.clearAllData();
     final created = await api.createAdmission(
       PatientStay(
         prefix: Prefix.bo,
@@ -258,6 +270,10 @@ void main() {
     );
 
     expect(await api.getPatientById(created.id!), isNotNull);
+    final secondContainer = ProviderContainer();
+    addTearDown(secondContainer.dispose);
+    final reloaded = secondContainer.read(mockApiRepositoryProvider);
+    expect(await reloaded.getPatientById(created.id!), isNotNull);
   });
 
   group('Mock admissions API workflow', () {

@@ -5,6 +5,7 @@ import '../../app/theme.dart';
 import '../../backend/admissions/admissions_providers.dart';
 import '../../backend/reports/field_config.dart';
 import '../../backend/reports/report_models.dart';
+import '../../data/providers/demo_providers.dart';
 import '../../features/admissions/models/patient_stay.dart';
 import '../../features/auth/auth_controller.dart';
 import '../../widgets/clinical_workspace.dart';
@@ -40,7 +41,9 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
   bool _presentationMode = false;
   int _pageIndex = 0;
   int _pageSize = 25;
-  List<ReportColumn> _columns = FieldConfigRegistry.filterRemovedColumns(ReportColumn.values.toList());
+  List<ReportColumn> _columns = FieldConfigRegistry.filterRemovedColumns(
+    ReportColumn.values.toList(),
+  );
   final Map<String, _SavedReportView> _savedViews = {};
   Future<ReportPage>? _pageFuture;
 
@@ -236,7 +239,9 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
       _maximumLengthController.text = view.maximumLength;
       _diagnosisController.text = view.diagnosis;
       _searchController.text = view.search;
-      _columns = FieldConfigRegistry.filterRemovedColumns(List.of(view.columns));
+      _columns = FieldConfigRegistry.filterRemovedColumns(
+        List.of(view.columns),
+      );
       _pageIndex = 0;
       _pageFuture = _loadPage();
     });
@@ -244,7 +249,9 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
 
   Future<void> _showColumnPicker() async {
     final selection = Set<ReportColumn>.of(_columns);
-    final availableColumns = FieldConfigRegistry.filterRemovedColumns(ReportColumn.values.toList());
+    final availableColumns = FieldConfigRegistry.filterRemovedColumns(
+      ReportColumn.values.toList(),
+    );
     final result = await showDialog<Set<ReportColumn>>(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -287,9 +294,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
       ),
     );
     if (result == null || !mounted) return;
-    setState(
-      () => _columns = availableColumns.where(result.contains).toList(),
-    );
+    setState(() => _columns = availableColumns.where(result.contains).toList());
   }
 
   Future<void> _startPresentation(int rowCount) async {
@@ -303,8 +308,6 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
         );
     if (mounted) setState(() => _presentationMode = true);
   }
-
-
 
   Future<void> _handlePdfExport({required bool isPrint}) async {
     try {
@@ -328,9 +331,9 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
         ),
       );
 
-      final page = await ref
-          .read(reportRepositoryProvider)
-          .search(
+      final patients = await ref
+          .read(reportsApiProvider)
+          .exportRows(
             ReportPageRequest(
               filters: _filters,
               sortField: _sortField,
@@ -345,7 +348,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
 
       if (isPrint) {
         await exportApi.printOrPreviewPdf(
-          patients: page.rows,
+          patients: patients,
           filters: _filters,
           columns: _columns,
           hideIdentifiers: _hideIdentifiers,
@@ -353,7 +356,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
         );
       } else {
         final savedPath = await exportApi.exportAndSavePdf(
-          patients: page.rows,
+          patients: patients,
           filters: _filters,
           columns: _columns,
           hideIdentifiers: _hideIdentifiers,
@@ -404,9 +407,9 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
         ),
       );
 
-      final page = await ref
-          .read(reportRepositoryProvider)
-          .search(
+      final patients = await ref
+          .read(reportsApiProvider)
+          .exportRows(
             ReportPageRequest(
               filters: _filters,
               sortField: _sortField,
@@ -420,7 +423,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
       final exportApi = ref.read(reportExcelExportApiProvider);
 
       final savedPath = await exportApi.exportAndSaveExcel(
-        patients: page.rows,
+        patients: patients,
         filters: _filters,
         columns: _columns,
         hideIdentifiers: _hideIdentifiers,
@@ -521,6 +524,11 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<int>(admissionsChangedProvider, (_, _) {
+      if (mounted) {
+        _refresh();
+      }
+    });
     if (_presentationMode) return _buildPresentation();
     return ClinicalWorkspace(
       title: 'Present / Report',

@@ -6,7 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:open_filex/open_filex.dart';
 import 'package:pdfrx/pdfrx.dart';
+import 'package:docx_file_viewer/docx_file_viewer.dart';
 
 import '../../app/theme.dart';
 import '../../core/aggregation.dart';
@@ -134,15 +136,19 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
 
   // Checkboxes
   bool? _probiotics;
-  bool _bloodTransfusion = false;
+  bool? _bloodTransfusionChoice;
   bool? _picc;
   bool _statusOk = false;
 
   DateTime _dod = DateTime.now();
 
+  // Persistent form state used by controlled date fields.
+  final _dodController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
+    _dodController.text = formatDate(_dod);
     _loadAdmittedPatients();
   }
 
@@ -178,6 +184,7 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
     _dasiiMotor97Controller.dispose();
     _dasiiMental50Controller.dispose();
     _dasiiMental97Controller.dispose();
+    _dodController.dispose();
     super.dispose();
   }
 
@@ -202,7 +209,21 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
   }
 
   Future<void> _pickDocument() async {
-    final file = await FilePicker.pickFile();
+    final file = await FilePicker.pickFile(
+      type: FileType.custom,
+      allowedExtensions: const [
+        'pdf',
+        'doc',
+        'docx',
+        'pages',
+        'png',
+        'jpg',
+        'jpeg',
+        'webp',
+        'gif',
+        'bmp',
+      ],
+    );
     if (file != null && mounted) {
       setState(() {
         _selectedDocument = file;
@@ -387,7 +408,7 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
     _maternalReceivedAntibiotics = patient.maternalReceivedAntibiotics;
     _maternalAntibiotics = {...?patient.maternalAntibiotics};
     _probiotics = patient.probiotics;
-    _bloodTransfusion = patient.bloodTransfusion ?? false;
+    _bloodTransfusionChoice = patient.bloodTransfusion;
     _picc = patient.picc;
     _statusOk = patient.statusOk;
   }
@@ -522,7 +543,8 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
         ventilation: _ventilation.isEmpty ? null : _ventilation.toList(),
         bpd: _bpd,
         probiotics: _probiotics,
-        bloodTransfusion: _bloodTransfusion,
+        bloodTransfusion: _bloodTransfusionChoice,
+        clearBloodTransfusion: _bloodTransfusionChoice == null,
         rop: _rop,
         usgHead: _usgHeadController.text.trim().isEmpty
             ? null
@@ -564,6 +586,7 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
           .updatePatient(updatedPatient);
       ref.invalidate(admissionsListProvider);
       ref.invalidate(dashboardStatsProvider);
+      notifyAdmissionsChanged(ref);
 
       if (mounted) {
         final isDemo = ref.read(authControllerProvider).isDemo;
@@ -599,8 +622,19 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
         builder: (context, constraints) {
           final showDocumentBesideForm =
               _selectedDocument != null && constraints.maxWidth >= 1000;
-          if (!showDocumentBesideForm) return _buildDischargeFormContent();
-
+          if (!showDocumentBesideForm) {
+            return Column(
+              children: [
+                Expanded(child: _buildDischargeFormContent(compact: true)),
+                if (_selectedDocument != null &&
+                    !_supportsDocumentPreview(_selectedDocument!))
+                  Padding(
+                    padding: const EdgeInsets.all(AppTheme.space16),
+                    child: _buildExternalDocumentCard(compact: true),
+                  ),
+              ],
+            );
+          }
           return Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -614,7 +648,7 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
     );
   }
 
-  Widget _buildDischargeFormContent() {
+  Widget _buildDischargeFormContent({bool compact = false}) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppTheme.space24),
       child: Center(
@@ -656,6 +690,12 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
                     ),
                   ],
                 ),
+                if (compact &&
+                    _selectedDocument?.path != null &&
+                    !_supportsDocumentPreview(_selectedDocument!)) ...[
+                  const SizedBox(height: AppTheme.space16),
+                  _buildOpenDocumentButton(_selectedDocument!.path!),
+                ],
                 const SizedBox(height: AppTheme.space16),
                 _buildPatientSelector(),
                 if (_selectedPatient != null) ...[
@@ -692,6 +732,33 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
     );
   }
 
+  bool _supportsDocumentPreview(PlatformFile file) {
+    final extension = (file.extension ?? '').toLowerCase();
+    return {'pdf', 'docx'}.contains(extension);
+  }
+
+  Widget _buildOpenDocumentButton(String path) {
+    return FilledButton.icon(
+      onPressed: () async {
+        try {
+          final result = await OpenFilex.open(path);
+          if (!mounted) return;
+          if (result.type != ResultType.done) {
+            ScaffoldMessenger.of(context)
+                .showSnackBar(SnackBar(content: Text(result.message)));
+          }
+        } catch (error) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Unable to open document: $error')),
+          );
+        }
+      },
+      icon: const Icon(Icons.open_in_new),
+      label: const Text('Open in default app'),
+    );
+  }
+
   Widget _buildDocumentPreview() {
     final file = _selectedDocument!;
     final extension = (file.extension ?? '').toLowerCase();
@@ -700,17 +767,10 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
     Widget content;
     if (extension == 'pdf' && path != null) {
       content = PdfViewer.file(path);
-    } else if ({
-          'png',
-          'jpg',
-          'jpeg',
-          'webp',
-          'gif',
-          'bmp',
-        }.contains(extension) &&
-        path != null) {
-      content = InteractiveViewer(
-        child: Image.file(File(path), fit: BoxFit.contain),
+    } else if ({'docx'}.contains(extension) && path != null) {
+      content = DocxView.file(
+        File(path),
+        config: const DocxViewConfig(enableSearch: true, enableZoom: true),
       );
     } else {
       content = Center(
@@ -732,6 +792,10 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodySmall,
               ),
+              if (path != null) ...[
+                const SizedBox(height: AppTheme.space16),
+                _buildOpenDocumentButton(path),
+              ],
             ],
           ),
         ),
@@ -1090,11 +1154,13 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
                 // Field 13: Date of Discharge (required)
                 _buildDateField(
                   label: 'Date of Discharge',
-                  controller: TextEditingController(text: formatDate(_dod)),
+                  controller: _dodController,
+                  initialDate: _dod,
                   onChanged: (date) {
                     if (date != null) {
                       setState(() {
                         _dod = date;
+                        _dodController.text = formatDate(date);
                       });
                     }
                   },
@@ -1585,13 +1651,7 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
                 ),
                 const SizedBox(height: AppTheme.space16),
                 // Field 37: Blood Transfusion
-                _buildCheckboxField(
-                  label: 'Blood Transfusion',
-                  value: _bloodTransfusion,
-                  onChanged: (value) => setState(() {
-                    _bloodTransfusion = value;
-                  }),
-                ),
+                _buildBloodTransfusionChoice(),
                 const SizedBox(height: AppTheme.space16),
                 // Field 38: ROP
                 _buildDropdownField<ROP>(
@@ -1858,6 +1918,7 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
     required String label,
     required TextEditingController controller,
     ValueChanged<DateTime?>? onChanged,
+    DateTime? initialDate,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1868,31 +1929,20 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
           onTap: () async {
             final picked = await showDatePicker(
               context: context,
-              initialDate: DateTime.now(),
+              initialDate: initialDate ?? DateTime.now(),
               firstDate: DateTime(2020),
               lastDate: DateTime.now().add(const Duration(days: 365)),
             );
-            if (picked != null) {
-              controller.text = formatDate(picked);
+            if (picked == null || !mounted) return;
+            controller.text = formatDate(picked);
+            setState(() {
               onChanged?.call(picked);
-            }
+            });
           },
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(AppTheme.space16),
-            decoration: BoxDecoration(
-              border: Border.all(color: AppTheme.hairline),
-              borderRadius: BorderRadius.circular(AppTheme.radius12),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.calendar_today,
-                  color: AppTheme.textSecondary,
-                  size: 20,
-                ),
-                const SizedBox(width: AppTheme.space12),
-                Text(
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
                   controller.text.isEmpty ? 'Select date' : controller.text,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: controller.text.isEmpty
@@ -1900,8 +1950,9 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
                         : AppTheme.textPrimary,
                   ),
                 ),
-              ],
-            ),
+              ),
+              const Icon(Icons.arrow_drop_down),
+            ],
           ),
         ),
       ],
@@ -2090,6 +2141,119 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
         ),
         Text(label, style: Theme.of(context).textTheme.bodyMedium),
       ],
+    );
+  }
+
+  Widget _buildBloodTransfusionChoice() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Blood Transfusion',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+        const SizedBox(height: AppTheme.space8),
+        Row(
+          children: [
+            Checkbox(
+              semanticLabel: 'Blood Transfusion Yes',
+              value: _bloodTransfusionChoice == true,
+              onChanged: (checked) => setState(() {
+                _bloodTransfusionChoice = checked == true ? true : null;
+              }),
+            ),
+            const Text('Yes'),
+            const SizedBox(width: AppTheme.space24),
+            Checkbox(
+              semanticLabel: 'Blood Transfusion No',
+              value: _bloodTransfusionChoice == false,
+              onChanged: (checked) => setState(() {
+                _bloodTransfusionChoice = checked == true ? false : null;
+              }),
+            ),
+            const Text('No'),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Future<void> _openSelectedDocument() async {
+    final path = _selectedDocument?.path;
+    if (path == null) return;
+    try {
+      final result = await OpenFilex.open(path);
+      if (!mounted) return;
+      if (result.type != ResultType.done) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(result.message)));
+      }
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to open document: $error')),
+      );
+    }
+  }
+
+  Widget _buildExternalDocumentCard({bool compact = false}) {
+    final file = _selectedDocument;
+    if (file == null) return const SizedBox.shrink();
+    final extension = (file.extension ?? 'file').toUpperCase();
+
+    return Container(
+      constraints: compact ? null : const BoxConstraints(maxWidth: 420),
+      padding: const EdgeInsets.all(AppTheme.space16),
+      decoration: BoxDecoration(
+        color: AppTheme.softMint,
+        borderRadius: BorderRadius.circular(AppTheme.radius12),
+        border: Border.all(color: AppTheme.hairline),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: AppTheme.surface,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(
+              Icons.description_outlined,
+              size: 26,
+              color: AppTheme.inkTeal,
+            ),
+          ),
+          const SizedBox(width: AppTheme.space12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  file.name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleSmall
+                      ?.copyWith(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '$extension document · Opens in your default app',
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: AppTheme.textSecondary),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: AppTheme.space12),
+          FilledButton.icon(
+            onPressed: _openSelectedDocument,
+            icon: const Icon(Icons.open_in_new, size: 18),
+            label: const Text('Open'),
+          ),
+        ],
+      ),
     );
   }
 }
