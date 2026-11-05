@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -114,38 +115,29 @@ class DataFilePatientStayStore implements PatientStayStore {
     }
   }
 
-  Future<List<PatientStay>> _mergeLatest(List<PatientStay> incoming) async {
-    final file = await _file();
-    final latest = !await file.exists()
-        ? <PatientStay>[]
-        : _decode(await file.readAsString());
-    final incomingById = {
-      for (final patient in incoming)
-        patient.id ?? patient.displayName: patient,
-    };
-    final merged = <String, PatientStay>{
-      for (final patient in latest) patient.id ?? patient.displayName: patient,
-      ...incomingById,
-    };
-    return merged.values.toList();
-  }
-
   @override
   Future<void> writeAll(List<PatientStay> patients) async {
     final previous = _writeQueues[fileName] ?? Future<void>.value();
     final queued = previous.then(
       (_) => _withFileLock(() async {
         final file = await _file();
-        final merged = await _mergeLatest(patients);
         final serialized = jsonEncode(
-          merged.map((patient) => patient.toJson()).toList(),
+          patients.map((patient) => patient.toJson()).toList(),
         );
-        final temp = File(
-          '${file.path}.${DateTime.now().microsecondsSinceEpoch}.tmp',
-        );
-        await temp.writeAsString(serialized, flush: true);
-        if (await file.exists()) await file.delete();
-        await temp.rename(file.path);
+        final random = Random.secure();
+        final suffix = List.generate(
+          4,
+          (_) => random.nextInt(1 << 32),
+        ).join('-');
+        final temp = File('${file.path}.$suffix.tmp');
+        await temp.create(exclusive: true);
+        try {
+          await temp.writeAsString(serialized, flush: true);
+          if (await file.exists()) await file.delete();
+          await temp.rename(file.path);
+        } finally {
+          if (await temp.exists()) await temp.delete();
+        }
       }),
     );
     _writeQueues[fileName] = queued.catchError((Object _) {});

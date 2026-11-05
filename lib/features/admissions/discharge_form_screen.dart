@@ -208,7 +208,21 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
   }
 
   Future<void> _pickDocument() async {
-    final file = await FilePicker.pickFile();
+    final file = await FilePicker.pickFile(
+      type: FileType.custom,
+      allowedExtensions: const [
+        'pdf',
+        'doc',
+        'docx',
+        'pages',
+        'png',
+        'jpg',
+        'jpeg',
+        'webp',
+        'gif',
+        'bmp',
+      ],
+    );
     if (file != null && mounted) {
       setState(() {
         _selectedDocument = file;
