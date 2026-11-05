@@ -173,6 +173,17 @@ class MockAdmissionsApi implements AdmissionsApi {
     await _ensureInitialized();
     await _simulateLatencyAndErrors();
 
+    // A new admission is always Admitted. Discharge data is only ever added
+    // later through dischargeAdmission.
+    if (admission.dod != null ||
+        admission.stay != null ||
+        admission.dischargeType != null) {
+      throw const MockApiException(
+        'A new admission cannot be created as discharged. '
+        'Use the discharge form to discharge a patient.',
+      );
+    }
+
     final fy = admission.financialYear ?? _getFinancialYear(admission.doa);
     final nextSerial = _maxSerialForFinancialYear(fy) + 1;
     final id =

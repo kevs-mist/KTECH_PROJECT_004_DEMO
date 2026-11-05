@@ -32,7 +32,6 @@ class _AdmissionFormScreenState extends ConsumerState<AdmissionFormScreen> {
   AdmissionHistory? _admissionHistory;
   BirthType? _birthType;
   DateTime _doa = DateTime.now();
-  DateTime? _dod;
   final _contactNumberController = TextEditingController();
   Relation _contactRelation = Relation.father;
   final _contactNumber2Controller = TextEditingController();
@@ -151,7 +150,6 @@ class _AdmissionFormScreenState extends ConsumerState<AdmissionFormScreen> {
         admissionHistory: _admissionHistory,
         birthType: _birthType,
         doa: _doa,
-        dod: _dod,
         contactNumber: _contactNumberController.text.trim(),
         contactRelation: _contactRelation,
         contactNumber2: _contactNumber2Controller.text.trim().isEmpty
@@ -327,34 +325,16 @@ class _AdmissionFormScreenState extends ConsumerState<AdmissionFormScreen> {
             label: 'DOA (Date of Admission)',
             date: _doa,
             onChanged: (date) {
-              if (date != null) {
-                setState(() {
-                  _doa = date;
-                });
-                _loadNextSerialNo(date);
-              }
-            },
-          ),
-          const SizedBox(height: AppTheme.space16),
-          // Field 4: DOD (empty at admission)
-          _buildDateField(
-            label: 'DOD (Date of Discharge)',
-            date: _dod,
-            onChanged: (date) {
               setState(() {
-                _dod = date;
+                _doa = date;
               });
+              _loadNextSerialNo(date);
             },
-            optional: true,
           ),
           const SizedBox(height: AppTheme.space16),
-          // Field 5: STAY (auto, read-only)
-          _buildReadOnlyField(
-            label: 'STAY (Days)',
-            value: _dod != null
-                ? calculateDaysStayed(_doa, _dod!).toString()
-                : 'N/A',
-          ),
+          // New admissions are always created as Admitted. Discharge date and
+          // stay are set later from the Discharge form.
+          _buildReadOnlyField(label: 'ADMISSION STATUS', value: 'Admitted'),
           const SizedBox(height: AppTheme.space16),
           _buildFormSectionHeading('Family and Contact'),
           // Field 6: CONTACT NUMBER
@@ -668,9 +648,8 @@ class _AdmissionFormScreenState extends ConsumerState<AdmissionFormScreen> {
 
   Widget _buildDateField({
     required String label,
-    required DateTime? date,
-    required ValueChanged<DateTime?> onChanged,
-    bool optional = false,
+    required DateTime date,
+    required ValueChanged<DateTime> onChanged,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -681,7 +660,7 @@ class _AdmissionFormScreenState extends ConsumerState<AdmissionFormScreen> {
           onTap: () async {
             final picked = await showDatePicker(
               context: context,
-              initialDate: date ?? DateTime.now(),
+              initialDate: date,
               firstDate: DateTime(2020),
               lastDate: DateTime.now().add(const Duration(days: 365)),
             );
@@ -705,19 +684,11 @@ class _AdmissionFormScreenState extends ConsumerState<AdmissionFormScreen> {
                 ),
                 const SizedBox(width: AppTheme.space12),
                 Text(
-                  date != null ? formatDate(date) : 'Select date',
+                  formatDate(date),
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: date != null
-                        ? AppTheme.textPrimary
-                        : AppTheme.textSecondary,
+                    color: AppTheme.textPrimary,
                   ),
                 ),
-                const Spacer(),
-                if (date != null)
-                  IconButton(
-                    icon: const Icon(Icons.clear, size: 20),
-                    onPressed: () => onChanged(null),
-                  ),
               ],
             ),
           ),
