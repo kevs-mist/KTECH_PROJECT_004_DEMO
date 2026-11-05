@@ -1,0 +1,574 @@
+name: Release Windows installer
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version number for the installer (for example 1.2.0)
+        required: true
+        type: string
+      publish:
+        description: Upload the installer to a GitHub Release
+        required: false
+        default: false
+        type: boolean
+      demo_mode:
+        description: Add ENABLE_DEMO=true to the Flutter build
+        required: false
+        default: true
+        type: boolean
+
+permissions: {}
+
+concurrency:
+  group: release-windows-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+          cache-key: flutter-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
+
+      - name: Install Flutter dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          flutter pub get
+
+      - name: Analyze code
+        shell: bash
+        run: |
+          set -euo pipefail
+          flutter analyze --fatal-infos
+
+      - name: Run tests with coverage
+        shell: bash
+        run: |
+          set -euo pipefail
+          flutter test --coverage
+
+      - name: Enforce minimum coverage
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/check_coverage.py coverage/lcov.info --threshold 50
+
+  build-windows:
+    name: build-windows
+    needs: verify
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    outputs:
+      VERSION: ${{ steps.resolve-version.outputs.VERSION }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+          cache-key: flutter-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
+
+      - name: Resolve version
+        id: resolve-version
+        shell: pwsh
+        env:
+          GITHUB_REF_TYPE: ${{ github.ref_type }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_EVENT_INPUTS_VERSION: ${{ github.event.inputs.version }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          if ($env:GITHUB_REF_TYPE -eq 'tag') {
+            $version = $env:GITHUB_REF_NAME.TrimStart('v')
+          } elseif ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch') {
+            $version = $env:GITHUB_EVENT_INPUTS_VERSION
+          } else {
+            throw 'Unable to resolve a version for this workflow run.'
+          }
+
+          if ($version -notmatch '^\d+\.\d+\.\d+(-[0-9A-Za-z.]+)?$') {
+            throw "Invalid version '$version'. Use a semantic version like 1.2.3 or 1.2.3-rc.1."
+          }
+
+          "VERSION=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Resolve demo mode
+        id: demo-mode
+        shell: pwsh
+        env:
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_REF_TYPE: ${{ github.ref_type }}
+          ENABLE_DEMO: ${{ vars.ENABLE_DEMO }}
+          GITHUB_EVENT_INPUTS_DEMO_MODE: ${{ github.event.inputs.demo_mode }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $demoMode = 'true'
+          if ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch') {
+            $demoMode = $env:GITHUB_EVENT_INPUTS_DEMO_MODE
+          }
+
+          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:ENABLE_DEMO -eq 'false') {
+            $demoMode = 'false'
+          }
+
+          "DEMO_MODE=$demoMode" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Install Flutter dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          flutter pub get
+
+      - name: Build Windows release
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.resolve-version.outputs.VERSION }}
+          DEMO_MODE: ${{ steps.demo-mode.outputs.DEMO_MODE }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $flutterArgs = @(
+            'build',
+            'windows',
+            '--release',
+            "--build-name=$env:VERSION",
+            "--build-number=$env:GITHUB_RUN_NUMBER"
+          )
+
+          if ($env:DEMO_MODE -eq 'true') {
+            $flutterArgs += '--dart-define=ENABLE_DEMO=true'
+          }
+
+          flutter @flutterArgs
+
+      - name: Verify Windows bundle
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $bundlePath = Join-Path $env:GITHUB_WORKSPACE 'build\windows\x64\runner\Release'
+          $requiredFiles = @(
+            'ktech_project_004.exe',
+            'flutter_windows.dll',
+            'screen_retriever_plugin.dll',
+            'window_manager_plugin.dll',
+            'printing_plugin.dll',
+            'url_launcher_windows_plugin.dll'
+          )
+
+          foreach ($file in $requiredFiles) {
+            $path = Join-Path $bundlePath $file
+            if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+              throw "Missing required Windows bundle file: $path"
+            }
+          }
+
+          $assetsDir = Join-Path $bundlePath 'data\flutter_assets'
+          if (-not (Test-Path -LiteralPath $assetsDir -PathType Container)) {
+            throw "Missing Flutter assets directory: $assetsDir"
+          }
+
+      - name: Ensure Inno Setup exists
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $candidatePaths = @(
+            "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
+            "${env:ProgramFiles}\Inno Setup 6\ISCC.exe"
+          )
+
+          $isccPath = $candidatePaths | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
+
+          if (-not $isccPath) {
+            choco install innosetup -y --no-progress --no-color
+            $isccPath = $candidatePaths | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
+          }
+
+          if (-not $isccPath) {
+            throw 'Inno Setup is not available at the expected install locations.'
+          }
+
+          $env:ISCC_PATH = $isccPath
+          Add-Content -Path $env:GITHUB_ENV -Value "ISCC_PATH=$isccPath"
+
+          $version = (Get-Item -LiteralPath $isccPath).VersionInfo.FileVersion
+          Write-Host "ISCC_PATH=$isccPath"
+          Write-Host "ISCC_VERSION=$version"
+
+      - name: Write embedded Inno Setup script
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $script = @'
+          [Setup]
+          AppId={{C0D35AE3-3B27-4DD3-97A4-F8479E217E71}
+          AppName=K-TECH Registry
+          AppVersion={#AppVersion}
+          AppPublisher=K-TECH
+          DefaultDirName={autopf}\KTECH Registry
+          PrivilegesRequired=lowest
+          PrivilegesRequiredOverridesAllowed=dialog
+          ArchitecturesAllowed=x64compatible
+          ArchitecturesInstallIn64BitMode=x64compatible
+          Compression=lzma2
+          SolidCompression=yes
+          WizardStyle=modern
+          OutputDir={#OutputDir}
+          OutputBaseFilename=KTECH-Registry-Setup-v{#AppVersion}
+          SetupIconFile={#IconFile}
+          UninstallDisplayIcon={app}\ktech_project_004.exe
+
+          [Files]
+          Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
+
+          [Icons]
+          Name: "{autoprograms}\K-TECH Registry"; Filename: "{app}\ktech_project_004.exe"
+          Name: "{autodesktop}\K-TECH Registry"; Filename: "{app}\ktech_project_004.exe"; Tasks: desktopicon
+
+          [Tasks]
+          Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
+
+          [Run]
+          Filename: "{app}\ktech_project_004.exe"; Description: "Launch K-TECH Registry"; Flags: postinstall nowait skipifsilent
+          '@
+
+          Set-Content -Path "$env:RUNNER_TEMP\ktech.iss" -Value $script -Encoding UTF8
+
+      - name: Compile Inno Setup installer
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.resolve-version.outputs.VERSION }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $sourceDir = Join-Path $env:GITHUB_WORKSPACE 'build\windows\x64\runner\Release'
+          $iconPath = Join-Path $env:GITHUB_WORKSPACE 'windows\runner\resources\app_icon.ico'
+          $outputDir = Join-Path $env:GITHUB_WORKSPACE 'dist'
+
+          New-Item -ItemType Directory -Force -Path $outputDir | Out-Null
+
+          & $env:ISCC_PATH /DAppVersion=$env:VERSION /DSourceDir="$sourceDir" /DIconFile="$iconPath" /DOutputDir="$outputDir" "$env:RUNNER_TEMP\ktech.iss"
+          if ($LASTEXITCODE -ne 0) {
+            throw "iscc failed with exit code $LASTEXITCODE"
+          }
+
+      - name: Validate built installer
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.resolve-version.outputs.VERSION }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $setupExe = Join-Path $env:GITHUB_WORKSPACE "dist\KTECH-Registry-Setup-v$env:VERSION.exe"
+
+          if (-not (Test-Path -LiteralPath $setupExe -PathType Leaf)) {
+            throw "Installer was not created: $setupExe"
+          }
+
+          if (-not $setupExe.EndsWith('.exe')) {
+            throw "Installer path does not end with .exe: $setupExe"
+          }
+
+          $item = Get-Item -LiteralPath $setupExe
+          if ($item.Length -le 10MB) {
+            throw "Installer is too small to be a valid package: $($item.Length) bytes"
+          }
+
+          $bytes = [System.IO.File]::ReadAllBytes($setupExe)
+          if ($bytes.Length -lt 2 -or $bytes[0] -ne 0x4D -or $bytes[1] -ne 0x5A) {
+            throw "Installer does not start with the Windows PE signature 'MZ': $setupExe"
+          }
+
+      - name: Generate SHA256 for installer
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.resolve-version.outputs.VERSION }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $setupExe = Join-Path $env:GITHUB_WORKSPACE "dist\KTECH-Registry-Setup-v$env:VERSION.exe"
+          $shaPath = "$setupExe.sha256"
+          $hash = (Get-FileHash -Path $setupExe -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  KTECH-Registry-Setup-v$env:VERSION.exe" | Set-Content -Path $shaPath -NoNewline
+
+      - name: Smoke test installer
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.resolve-version.outputs.VERSION }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $setupExe = Join-Path $env:GITHUB_WORKSPACE "dist\KTECH-Registry-Setup-v$env:VERSION.exe"
+          $installDir = Join-Path $env:RUNNER_TEMP 'ktech'
+          $uninstaller = Join-Path $installDir 'unins000.exe'
+
+          if (Test-Path -LiteralPath $installDir) {
+            Remove-Item -LiteralPath $installDir -Recurse -Force
+          }
+
+          $process = Start-Process -FilePath $setupExe -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=$installDir") -Wait -PassThru -NoNewWindow
+          if ($process.ExitCode -ne 0) {
+            throw "Setup installer exited with code $($process.ExitCode)."
+          }
+
+          $requiredInstalledFiles = @(
+            'ktech_project_004.exe',
+            'flutter_windows.dll',
+            'screen_retriever_plugin.dll',
+            'window_manager_plugin.dll',
+            'printing_plugin.dll',
+            'url_launcher_windows_plugin.dll'
+          )
+
+          foreach ($file in $requiredInstalledFiles) {
+            $path = Join-Path $installDir $file
+            if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+              throw "The installer did not include $file in $installDir"
+            }
+          }
+
+          if (-not (Test-Path -LiteralPath $uninstaller -PathType Leaf)) {
+            throw "The installer did not create an uninstaller at $uninstaller"
+          }
+
+          $uninstallProcess = Start-Process -FilePath $uninstaller -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART') -Wait -PassThru -NoNewWindow
+          if ($uninstallProcess.ExitCode -ne 0) {
+            throw "Uninstaller exited with code $($uninstallProcess.ExitCode)."
+          }
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ktech-windows-installer
+          path: |
+            dist/*.exe
+            dist/*.sha256
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    name: publish
+    needs: build-windows
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publish == true)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.build-windows.outputs.VERSION }}
+      GH_TOKEN: ${{ vars.RELEASE_REPO != '' && secrets.RELEASES_REPO_TOKEN || github.token }}
+    steps:
+      - name: Download installation artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ktech-windows-installer
+          path: dist
+
+      - name: Validate downloaded artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd dist
+
+          exe_count=$(find . -maxdepth 1 -type f -name '*.exe' | wc -l | tr -d ' ')
+          sha_count=$(find . -maxdepth 1 -type f -name '*.sha256' | wc -l | tr -d ' ')
+
+          if [ "$exe_count" -ne 1 ] || [ "$sha_count" -ne 1 ]; then
+            echo "Expected exactly one .exe and one .sha256 in the artifact, but found $exe_count .exe and $sha_count .sha256 files." >&2
+            find . -maxdepth 1 -type f -printf '%f\n' | sort >&2
+            exit 1
+          fi
+
+      - name: Resolve target repository
+        id: target
+        shell: bash
+        run: |
+          set -euo pipefail
+          TARGET="${{ vars.RELEASE_REPO }}"
+          if [ -z "$TARGET" ]; then
+            TARGET="${{ github.repository }}"
+          fi
+
+          echo "target=$TARGET" >> "$GITHUB_OUTPUT"
+          if [ "$TARGET" = "${{ github.repository }}" ]; then
+            echo "same_repo=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "same_repo=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Resolve release token
+        id: release-token
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -n "${{ vars.RELEASE_REPO }}" ]; then
+            if [ -z "${{ secrets.RELEASES_REPO_TOKEN }}" ]; then
+              echo "RELEASE_REPO is set, but RELEASES_REPO_TOKEN is empty. Configure a PAT for the target repo." >&2
+              exit 1
+            fi
+            echo "token=provided" >> "$GITHUB_OUTPUT"
+          else
+            echo "token=github" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create release notes
+        shell: bash
+        env:
+          VERSION: ${{ env.VERSION }}
+        run: |
+          set -euo pipefail
+
+          SHA_FILE=$(find dist -maxdepth 1 -type f -name '*.sha256' -print -quit)
+          SHA_VALUE=$(cut -d' ' -f1 "$SHA_FILE")
+
+          cat > release-notes.md <<EOF
+          ## K-TECH Registry v${VERSION}
+
+          Version: ${VERSION}
+          Date: $(date -u +'%Y-%m-%d')
+          Install: download the Setup .exe and run it
+          SHA256: ${SHA_VALUE}
+          Windows 10/11 x64
+
+          This installer is unsigned and Windows SmartScreen may warn before installation.
+          EOF
+
+      - name: Create or update release
+        shell: bash
+        env:
+          TARGET: ${{ steps.target.outputs.target }}
+          SAME_REPO: ${{ steps.target.outputs.same_repo }}
+          VERSION: ${{ env.VERSION }}
+        run: |
+          set -euo pipefail
+
+          EXE_FILE=$(find dist -maxdepth 1 -type f -name '*.exe' -print -quit)
+          SHA_FILE=$(find dist -maxdepth 1 -type f -name '*.sha256' -print -quit)
+
+          if [ ! -f "$EXE_FILE" ] || [ ! -f "$SHA_FILE" ]; then
+            echo "Expected a compiled installer and a SHA256 file in dist/" >&2
+            exit 1
+          fi
+
+          if gh release view "v${VERSION}" --repo "$TARGET" >/dev/null 2>&1; then
+            gh release upload "v${VERSION}" "$EXE_FILE" "$SHA_FILE" --repo "$TARGET" --clobber
+          else
+            ARGS=(release create "v${VERSION}" "$EXE_FILE" "$SHA_FILE" --repo "$TARGET" --title "K-TECH Registry v${VERSION}" --notes-file release-notes.md)
+            if [ "$SAME_REPO" = "true" ]; then
+              ARGS+=(--target "${{ github.sha }}")
+            fi
+            if [[ "$VERSION" == *-* ]]; then
+              ARGS+=(--prerelease)
+            fi
+            gh "${ARGS[@]}"
+          fi
+
+      - name: Validate release assets list
+        shell: bash
+        env:
+          TARGET: ${{ steps.target.outputs.target }}
+          VERSION: ${{ env.VERSION }}
+        run: |
+          set -euo pipefail
+
+          mapfile -t ASSET_NAMES < <(gh release view "v${VERSION}" --repo "$TARGET" --json assets --jq '.assets[].name')
+          EXPECTED=("KTECH-Registry-Setup-v${VERSION}.exe" "KTECH-Registry-Setup-v${VERSION}.exe.sha256")
+
+          if [ "${#ASSET_NAMES[@]}" -ne 2 ]; then
+            echo "Expected exactly 2 release assets, but found ${#ASSET_NAMES[@]}: ${ASSET_NAMES[*]}" >&2
+            exit 1
+          fi
+
+          for expected_name in "${EXPECTED[@]}"; do
+            if ! printf '%s\n' "${ASSET_NAMES[@]}" | grep -Fxq "$expected_name"; then
+              echo "Missing expected asset: $expected_name" >&2
+              exit 1
+            fi
+          done
+
+          for actual_name in "${ASSET_NAMES[@]}"; do
+            if ! printf '%s\n' "${EXPECTED[@]}" | grep -Fxq "$actual_name"; then
+              echo "Unexpected asset found in release: $actual_name" >&2
+              exit 1
+            fi
+          done
+
+      - name: Download published installer and verify SHA256
+        shell: bash
+        env:
+          TARGET: ${{ steps.target.outputs.target }}
+          VERSION: ${{ env.VERSION }}
+        run: |
+          set -euo pipefail
+
+          rm -rf release-download
+          mkdir -p release-download
+          gh release download "v${VERSION}" --repo "$TARGET" --dir release-download --pattern '*.exe'
+
+          DOWNLOADED_EXE=$(find release-download -type f -name '*.exe' -print -quit)
+          if [ -z "$DOWNLOADED_EXE" ]; then
+            echo 'No .exe file was downloaded from the GitHub release.' >&2
+            exit 1
+          fi
+
+          EXPECTED_HASH=$(cut -d' ' -f1 "$(find dist -maxdepth 1 -type f -name '*.sha256' -print -quit)")
+          ACTUAL_HASH=$(sha256sum "$DOWNLOADED_EXE" | awk '{print $1}')
+
+          if [ "$ACTUAL_HASH" != "$EXPECTED_HASH" ]; then
+            echo "SHA256 mismatch. Expected $EXPECTED_HASH but downloaded file hash is $ACTUAL_HASH." >&2
+            exit 1
+          fi
+
+      - name: Write release summary
+        shell: bash
+        env:
+          TARGET: ${{ steps.target.outputs.target }}
+          VERSION: ${{ env.VERSION }}
+        run: |
+          set -euo pipefail
+
+          EXE_FILE=$(find dist -maxdepth 1 -type f -name '*.exe' -print -quit)
+          EXE_NAME=$(basename "$EXE_FILE")
+          FILE_SIZE=$(stat -c%s "$EXE_FILE")
+          SHA_VALUE=$(cut -d' ' -f1 "$(find dist -maxdepth 1 -type f -name '*.sha256' -print -quit)")
+          DOWNLOAD_URL=$(gh release view "v${VERSION}" --repo "$TARGET" --json assets --jq ".assets[] | select(.name == \"$EXE_NAME\") | .browser_download_url" | head -n 1)
+
+          {
+            echo "### Windows installer release summary"
+            echo
+            echo "- Download URL: $DOWNLOAD_URL"
+            echo "- File size: $FILE_SIZE bytes"
+            echo "- SHA256: $SHA_VALUE"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "${{ steps.target.outputs.same_repo }}" = "true" ]; then
+            {
+              echo
+              echo "GitHub auto-attaches source archives to releases in this repo; set RELEASE_REPO to avoid that."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      # TODO: code-sign the installer with signtool before publishing to a trusted distribution channel.
