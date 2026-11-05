@@ -165,10 +165,7 @@ class AuthApi {
 
     final response = await client.post(
       Uri.parse('$baseUrl/otp/verify'),
-      headers: {
-        'Content-Type': 'application/json',
-        'x-service-secret': 'development-service-secret',
-      },
+      headers: {'Content-Type': 'application/json'},
       body: jsonEncode(payload),
     );
 

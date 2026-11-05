@@ -36,7 +36,7 @@ class MockReportRepository implements ReportRepository {
             return request.ascending ? comparison : -comparison;
           });
 
-    final safePageSize = request.pageSize.clamp(1, 500);
+    final safePageSize = request.pageSize <= 0 ? 25 : request.pageSize;
     final safePageIndex = request.pageIndex < 0 ? 0 : request.pageIndex;
     final start = safePageIndex * safePageSize;
     final end = (start + safePageSize).clamp(0, filtered.length);
@@ -202,8 +202,8 @@ class MockReportRepository implements ReportRepository {
     patient.respiratorySystemOther,
     patient.maternalMorbidities?.join(' '),
     patient.maternalMorbiditiesOther,
-    patient.antentalScan?.join(' '),
-    patient.antentalScanOther,
+    patient.antenatalScan?.join(' '),
+    patient.antenatalScanOther,
     patient.feeding?.join(' '),
     patient.feedingOther,
     patient.remarks,

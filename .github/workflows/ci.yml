@@ -3,7 +3,7 @@ name: CI
 on:
   push:
     branches:
-      - "**"
+      - "main"
     tags:
       - "v*"
   pull_request:
@@ -13,10 +13,42 @@ on:
 permissions:
   contents: read
 
+# Skip CI on main if the same commit already passed in a PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  check-skip:
+    name: check-skip
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    outputs:
+      should-skip: ${{ steps.check.outputs.should-skip }}
+    steps:
+      - name: Check if commit already validated in PR
+        id: check
+        run: |
+          echo "Checking if commit ${{ github.sha }} was already validated in a PR..."
+          # Check if the commit has a successful CI check from a PR
+          if gh api repos/${{ github.repository }}/commits/${{ github.sha }}/check-runs --jq '.check_runs[] | select(.name == "analyze" or .name == "tests") | select(.conclusion == "success") | any' 2>/dev/null; then
+            echo "Commit already validated in PR, skipping CI"
+            echo "should-skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "Commit not yet validated, running CI"
+            echo "should-skip=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+
   analyze:
     name: analyze
     runs-on: ubuntu-latest
+    needs: check-skip
+    if: |
+      (github.event_name == 'pull_request') ||
+      (github.event_name == 'push' && github.ref != 'refs/heads/main') ||
+      (needs.check-skip.result == 'success' && needs.check-skip.outputs.should-skip != 'true')
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -25,6 +57,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: 3.47.7
           cache: true
           cache-key: flutter-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
 
@@ -37,7 +70,11 @@ jobs:
   tests:
     name: tests
     runs-on: ubuntu-latest
-    needs: analyze
+    needs: [analyze, check-skip]
+    if: |
+      (github.event_name == 'pull_request') ||
+      (github.event_name == 'push' && github.ref != 'refs/heads/main') ||
+      (needs.check-skip.result == 'success' && needs.check-skip.outputs.should-skip != 'true')
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -46,6 +83,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: 3.47.7
           cache: true
           cache-key: flutter-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
 
@@ -68,12 +106,14 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
-  windows-build:
-    name: windows-build
-    runs-on: windows-latest
-    needs: tests
-    permissions:
-      contents: write
+  macos-build:
+    name: macos-build
+    runs-on: macos-latest
+    needs: [tests, check-skip]
+    if: |
+      (github.event_name == 'pull_request') ||
+      (github.event_name == 'push' && github.ref != 'refs/heads/main') ||
+      (needs.check-skip.result == 'success' && needs.check-skip.outputs.should-skip != 'true')
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -82,12 +122,79 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: 3.47.7
+          cache: true
+          cache-key: flutter-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build macOS release
+        run: flutter build macos --release
+
+      - name: Create macOS app bundle
+        run: |
+          cd build/macos/Build/Products/Release
+          zip -r ktech_project_004-macos.zip ktech_project_004.app
+
+      - name: Upload macOS app bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: ktech-project-004-macos
+          path: build/macos/Build/Products/Release/ktech_project_004-macos.zip
+          if-no-files-found: error
+          retention-days: 14
+
+  windows-build:
+    name: windows-build
+    runs-on: windows-latest
+    needs: [tests, check-skip]
+    permissions:
+      contents: write
+    if: |
+      (github.event_name == 'pull_request') ||
+      (github.event_name == 'push' && github.ref != 'refs/heads/main') ||
+      (needs.check-skip.result == 'success' && needs.check-skip.outputs.should-skip != 'true')
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.7
           cache: true
           cache-key: flutter-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
 
       - name: Build and package complete Windows bundle
         shell: pwsh
-        run: ./scripts/package-windows.ps1
+        run: |
+          flutter pub get
+          flutter build windows --release
+          $bundlePath = "build\windows\x64\runner\Release"
+          $requiredPlugins = @(
+            'flutter_windows.dll',
+            'pdfium.dll',
+            'screen_retriever_plugin.dll',
+            'window_manager_plugin.dll',
+            'printing_plugin.dll',
+            'url_launcher_windows_plugin.dll'
+          )
+          $missingPlugins = @(
+            $requiredPlugins | Where-Object {
+              -not (Test-Path (Join-Path $bundlePath $_))
+            }
+          )
+          if ($missingPlugins.Count -gt 0) {
+            Write-Error "Windows bundle is missing plugin DLLs: $($missingPlugins -join ', ')."
+            exit 1
+          }
+          if (-not (Test-Path (Join-Path $bundlePath 'data\flutter_assets'))) {
+            Write-Error "Flutter app assets not found in '$bundlePath\data\flutter_assets'."
+            exit 1
+          }
+          Compress-Archive -Path (Join-Path $bundlePath '*') -DestinationPath build/windows/ktech_project_004-windows-x64.zip -CompressionLevel Optimal -Force
 
       - name: Upload Windows release bundle
         uses: actions/upload-artifact@v4

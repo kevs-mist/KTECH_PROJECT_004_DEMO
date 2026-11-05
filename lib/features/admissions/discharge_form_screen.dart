@@ -50,7 +50,7 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
   final _headCircumferenceController = TextEditingController();
   final _lengthController = TextEditingController();
   final _maternalMorbiditiesOtherController = TextEditingController();
-  final _antentalScanOtherController = TextEditingController();
+  final _antenatalScanOtherController = TextEditingController();
   final _respiratorySystemOtherController = TextEditingController();
   final _maternalAntibioticsOtherController = TextEditingController();
   final _sepsisOtherController = TextEditingController();
@@ -126,7 +126,7 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
 
   // Multi-select lists
   Set<String> _maternalMorbidities = {};
-  Set<String> _antentalScan = {};
+  Set<String> _antenatalScan = {};
   Set<String> _resuscitationAtBirth = {};
   Set<String> _respiratorySystem = {};
   Set<String> _ventilation = {};
@@ -166,7 +166,7 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
     _headCircumferenceController.dispose();
     _lengthController.dispose();
     _maternalMorbiditiesOtherController.dispose();
-    _antentalScanOtherController.dispose();
+    _antenatalScanOtherController.dispose();
     _respiratorySystemOtherController.dispose();
     _maternalAntibioticsOtherController.dispose();
     _sepsisOtherController.dispose();
@@ -369,7 +369,7 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
     _lengthController.text = patient.length?.toString() ?? '';
     _maternalMorbiditiesOtherController.text =
         patient.maternalMorbiditiesOther ?? '';
-    _antentalScanOtherController.text = patient.antentalScanOther ?? '';
+    _antenatalScanOtherController.text = patient.antenatalScanOther ?? '';
     _respiratorySystemOtherController.text =
         patient.respiratorySystemOther ?? '';
     _maternalAntibioticsOtherController.text =
@@ -399,7 +399,7 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
     _cdcSitting = patient.cdcSitting;
     _cdcStanding = patient.cdcStanding;
     _maternalMorbidities = {...?patient.maternalMorbidities};
-    _antentalScan = {...?patient.antentalScan};
+    _antenatalScan = {...?patient.antenatalScan};
     _resuscitationAtBirth = {...?patient.resuscitationAtBirth};
     _respiratorySystem = {...?patient.respiratorySystem};
     _ventilation = {...?patient.ventilation};
@@ -494,10 +494,10 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
             ? null
             : _maternalMorbiditiesOtherController.text.trim(),
         ans: _ans,
-        antentalScan: _antentalScan.isEmpty ? null : _antentalScan.toList(),
-        antentalScanOther: _antentalScanOtherController.text.trim().isEmpty
+        antenatalScan: _antenatalScan.isEmpty ? null : _antenatalScan.toList(),
+        antenatalScanOther: _antenatalScanOtherController.text.trim().isEmpty
             ? null
-            : _antentalScanOtherController.text.trim(),
+            : _antenatalScanOtherController.text.trim(),
         modeOfDelivery: _modeOfDelivery,
         resuscitationAtBirth: _resuscitationAtBirth.isEmpty
             ? null
@@ -801,6 +801,8 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
         ),
       );
     }
+
+    if (!mounted) return const SizedBox.shrink();
 
     return Container(
       margin: const EdgeInsets.fromLTRB(
@@ -1330,11 +1332,11 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
                     'Brain sparing effect',
                     'Polyhydroamnios',
                   ],
-                  selected: _antentalScan,
-                  otherController: _antentalScanOtherController,
+                  selected: _antenatalScan,
+                  otherController: _antenatalScanOtherController,
                   onChanged: (set) {
                     setState(() {
-                      _antentalScan = set;
+                      _antenatalScan = set;
                     });
                   },
                 ),

@@ -20,6 +20,7 @@ abstract class AdmissionsApi {
   });
   Future<Admission?> getAdmission(String id);
   Future<Admission> createAdmission(Admission admission);
+  Future<Admission> updateAdmission(Admission admission);
   Future<Admission> dischargeAdmission(String id, Map<String, dynamic> dischargeData);
   Future<DashboardStats> getDashboardStats();
   void reset();

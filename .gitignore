@@ -36,6 +36,11 @@ migrate_working_dir/
 /database/*.sqlite-shm
 /database/*.sqlite-wal
 
+# Audit and temporary folders
+/audit/
+/services/
+/test_outputs/
+
 # Symbolication related
 app.*.symbols
 

@@ -13,13 +13,19 @@ class MockAdmissionsApi implements AdmissionsApi {
   final Duration? latency;
   final double failureRate;
   final PatientStayStore? store;
+  final bool seedDemoData;
   final Random _rng = Random();
   final List<Admission> _admissions = [];
   int _idCounter = 0;
   bool _initialized = false;
 
-  MockAdmissionsApi({this.latency, this.failureRate = 0.0, this.store}) {
-    if (store == null) {
+  MockAdmissionsApi({
+    this.latency,
+    this.failureRate = 0.0,
+    this.store,
+    this.seedDemoData = true,
+  }) {
+    if (store == null && seedDemoData) {
       _initData();
     }
   }
@@ -35,10 +41,10 @@ class MockAdmissionsApi implements AdmissionsApi {
         _admissions.addAll(stored);
         return;
       }
-      _initData();
+      if (seedDemoData) _initData();
       return;
     }
-    if (_admissions.isEmpty) {
+    if (_admissions.isEmpty && seedDemoData) {
       _initData();
     }
   }
@@ -55,7 +61,11 @@ class MockAdmissionsApi implements AdmissionsApi {
 
   @override
   void reset() {
-    _initData();
+    if (seedDemoData) {
+      _initData();
+    } else {
+      clear();
+    }
   }
 
   @override
@@ -239,6 +249,28 @@ class MockAdmissionsApi implements AdmissionsApi {
   }
 
   @override
+  Future<Admission> updateAdmission(Admission admission) async {
+    await _ensureInitialized();
+    await _simulateLatencyAndErrors();
+
+    final id = admission.id;
+    if (id == null) {
+      throw const MockApiException('Admission id is required for updates');
+    }
+    final index = _admissions.indexWhere((a) => a.id == id);
+    if (index == -1) {
+      throw const MockApiException('Admission not found');
+    }
+
+    _admissions[index] = admission;
+    final currentStore = store;
+    if (currentStore != null) {
+      await currentStore.writeAll(_admissions);
+    }
+    return admission;
+  }
+
+  @override
   Future<Admission> dischargeAdmission(
     String id,
     Map<String, dynamic> dischargeData,
@@ -334,7 +366,8 @@ class MockAdmissionsApi implements AdmissionsApi {
       shiftReason:
           dischargeData['shiftReason'] as String? ?? existing.shiftReason,
       maternalMorbidities:
-          dischargeData['maternalMorbidities'] as List<String>?,
+          dischargeData['maternalMorbidities'] as List<String>? ??
+          existing.maternalMorbidities,
       maternalReceivedAntibiotics:
           dischargeData['maternalReceivedAntibiotics'] as bool? ??
           existing.maternalReceivedAntibiotics,
@@ -344,38 +377,61 @@ class MockAdmissionsApi implements AdmissionsApi {
       maternalAntibioticsOther:
           dischargeData['maternalAntibioticsOther'] as String? ??
           existing.maternalAntibioticsOther,
-      cardiovascularSystem: dischargeData['cardiovascularSystem'] as String?,
-      sepsis: dischargeData['sepsis'] as String?,
-      organism: dischargeData['organism'] as String?,
-      feeding: dischargeData['feeding'] as List<String>?,
-      rtfStarted: dischargeData['rtfStarted'] as String?,
-      fullFeedsReached: dischargeData['fullFeedsReached'] as String?,
+      cardiovascularSystem:
+          dischargeData['cardiovascularSystem'] as String? ??
+          existing.cardiovascularSystem,
+      sepsis: dischargeData['sepsis'] as String? ?? existing.sepsis,
+      organism: dischargeData['organism'] as String? ?? existing.organism,
+      feeding:
+          dischargeData['feeding'] as List<String>? ?? existing.feeding,
+      rtfStarted:
+          dischargeData['rtfStarted'] as String? ?? existing.rtfStarted,
+      fullFeedsReached:
+          dischargeData['fullFeedsReached'] as String? ??
+          existing.fullFeedsReached,
       surfactant: dischargeData['surfactant'] is Surfactant
           ? dischargeData['surfactant'] as Surfactant
-          : null,
-      ventilation: dischargeData['ventilation'] as List<String>?,
-      bpd: dischargeData['bpd'] is BPD ? dischargeData['bpd'] as BPD : null,
-      probiotics: dischargeData['probiotics'] as bool?,
-      bloodTransfusion: dischargeData['bloodTransfusion'] as bool?,
-      rop: dischargeData['rop'] is ROP ? dischargeData['rop'] as ROP : null,
-      usgHead: dischargeData['usgHead'] as String?,
-      fileName: dischargeData['fileName'] as String?,
-      adductaAngle: dischargeData['adductaAngle'] as String?,
-      cdcHeadControl: dischargeData['cdcHeadControl'] as String?,
-      cdcSitting: dischargeData['cdcSitting'] as String?,
-      cdcStanding: dischargeData['cdcStanding'] as String?,
+          : existing.surfactant,
+      ventilation:
+          dischargeData['ventilation'] as List<String>? ??
+          existing.ventilation,
+      bpd: dischargeData['bpd'] is BPD
+          ? dischargeData['bpd'] as BPD
+          : existing.bpd,
+      probiotics:
+          dischargeData['probiotics'] as bool? ?? existing.probiotics,
+      bloodTransfusion:
+          dischargeData['bloodTransfusion'] as bool? ??
+          existing.bloodTransfusion,
+      rop: dischargeData['rop'] is ROP
+          ? dischargeData['rop'] as ROP
+          : existing.rop,
+      usgHead: dischargeData['usgHead'] as String? ?? existing.usgHead,
+      fileName: dischargeData['fileName'] as String? ?? existing.fileName,
+      adductaAngle:
+          dischargeData['adductaAngle'] as String? ?? existing.adductaAngle,
+      cdcHeadControl:
+          dischargeData['cdcHeadControl'] as String? ?? existing.cdcHeadControl,
+      cdcSitting:
+          dischargeData['cdcSitting'] as String? ?? existing.cdcSitting,
+      cdcStanding:
+          dischargeData['cdcStanding'] as String? ?? existing.cdcStanding,
       dasiiMotorAgeAt50thCentile:
-          dischargeData['dasiiMotorAgeAt50thCentile'] as String?,
+          dischargeData['dasiiMotorAgeAt50thCentile'] as String? ??
+          existing.dasiiMotorAgeAt50thCentile,
       dasiiMotorAgeAt97thCentile:
-          dischargeData['dasiiMotorAgeAt97thCentile'] as String?,
+          dischargeData['dasiiMotorAgeAt97thCentile'] as String? ??
+          existing.dasiiMotorAgeAt97thCentile,
       dasiiMentalAgeAt50thCentile:
-          dischargeData['dasiiMentalAgeAt50thCentile'] as String?,
+          dischargeData['dasiiMentalAgeAt50thCentile'] as String? ??
+          existing.dasiiMentalAgeAt50thCentile,
       dasiiMentalAgeAt97thCentile:
-          dischargeData['dasiiMentalAgeAt97thCentile'] as String?,
-      other: dischargeData['other'] as String?,
-      remarks: dischargeData['remarks'] as String?,
-      picc: dischargeData['picc'] as bool?,
-      user: dischargeData['user'] as String?,
+          dischargeData['dasiiMentalAgeAt97thCentile'] as String? ??
+          existing.dasiiMentalAgeAt97thCentile,
+      other: dischargeData['other'] as String? ?? existing.other,
+      remarks: dischargeData['remarks'] as String? ?? existing.remarks,
+      picc: dischargeData['picc'] as bool? ?? existing.picc,
+      user: dischargeData['user'] as String? ?? existing.user,
       statusOk: dischargeData['statusOk'] as bool? ?? true,
     );
 

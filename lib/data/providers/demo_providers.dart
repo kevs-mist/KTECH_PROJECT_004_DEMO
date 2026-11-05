@@ -2,9 +2,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../backend/admissions/admissions_repository.dart';
 import '../../backend/admissions/api_admissions_repository.dart';
+import '../../backend/admissions/authorized_admissions_repository.dart';
 import '../../backend/admissions/demo_admissions_repository.dart';
 import '../../backend/admissions/local_patient_stay_store.dart';
 import '../../backend/reports/mock_report_repository.dart';
+import '../../core/demo_flag.dart';
 import '../../features/admissions/models/patient_stay.dart';
 import '../../features/auth/auth_controller.dart';
 import '../api/admissions_api.dart';
@@ -22,9 +24,10 @@ import '../../features/discharge/document/local_discharge_document_api.dart';
 /// Alias for authControllerProvider
 final authProvider = authControllerProvider;
 
-/// One mock API instance for the whole demo session (non-autoDispose on purpose).
+/// In-memory mock API. Seed data is only injected when the app is built
+/// with `--dart-define=ENABLE_DEMO=true`.
 final mockAdmissionsApiProvider = Provider<MockAdmissionsApi>((ref) {
-  return MockAdmissionsApi();
+  return MockAdmissionsApi(seedDemoData: DemoFlag.isEnabled);
 });
 
 final mockAuthApiProvider = Provider<MockAuthApi>((ref) => MockAuthApi());
@@ -33,19 +36,35 @@ final demoRepositoryProvider = Provider<AdmissionsRepository>((ref) {
   return DemoAdmissionsRepository(ref.watch(mockAdmissionsApiProvider));
 });
 
+/// Persistent API backed by the encrypted on-disk registry. Used as the
+/// production data source and shared by reports so both layers read the
+/// same records.
+final persistentAdmissionsApiProvider = Provider<MockAdmissionsApi>((ref) {
+  return MockAdmissionsApi(
+    latency: Duration.zero,
+    store: const DataFilePatientStayStore(),
+    seedDemoData: false,
+  );
+});
+
 final realAdmissionsRepositoryProvider = Provider<AdmissionsRepository>((ref) {
   return ApiAdmissionsRepository(
-    DemoAdmissionsRepository.withStore(store: const DataFilePatientStayStore()),
+    DemoAdmissionsRepository(ref.watch(persistentAdmissionsApiProvider)),
   );
 });
 
 final mockApiRepositoryProvider = realAdmissionsRepositoryProvider;
 
-/// Screens ALWAYS use this. It picks demo vs real from the auth state.
+/// Screens ALWAYS use this. It picks demo vs real from the auth state and
+/// the ENABLE_DEMO compile-time flag, then enforces write permissions at
+/// the data layer.
 final admissionsRepositoryProvider = Provider<AdmissionsRepository>((ref) {
-  final isDemo = ref.watch(authProvider.select((s) => s.isDemo));
-  if (isDemo) return ref.watch(demoRepositoryProvider);
-  return ref.watch(realAdmissionsRepositoryProvider);
+  final auth = ref.watch(authProvider);
+  final useDemo = DemoFlag.isEnabled && auth.isDemo;
+  final inner = useDemo
+      ? ref.watch(demoRepositoryProvider)
+      : ref.watch(realAdmissionsRepositoryProvider);
+  return AuthorizedAdmissionsRepository(inner, canWrite: auth.canWrite);
 });
 
 final admissionsChangedProvider = StateProvider<int>((ref) => 0);
@@ -55,7 +74,12 @@ void notifyAdmissionsChanged(WidgetRef ref) {
 }
 
 final reportsApiProvider = Provider<ReportsApi>((ref) {
-  return MockReportsApi(ref.watch(mockAdmissionsApiProvider));
+  final auth = ref.watch(authProvider);
+  final useDemo = DemoFlag.isEnabled && auth.isDemo;
+  final api = useDemo
+      ? ref.watch(mockAdmissionsApiProvider)
+      : ref.watch(persistentAdmissionsApiProvider);
+  return MockReportsApi(api);
 });
 
 final reportRepositoryProvider = Provider<ReportRepository>((ref) {
@@ -87,7 +111,8 @@ final admissionsListProvider = FutureProvider<List<PatientStay>>((ref) async {
 });
 
 final dashboardStatsProvider = FutureProvider<DashboardStats>((ref) async {
-  final isDemo = ref.watch(authProvider.select((s) => s.isDemo));
+  final auth = ref.watch(authProvider);
+  final isDemo = DemoFlag.isEnabled && auth.isDemo;
   if (isDemo) {
     final api = ref.watch(mockAdmissionsApiProvider);
     return api.getDashboardStats();

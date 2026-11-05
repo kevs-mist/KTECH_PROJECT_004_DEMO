@@ -263,8 +263,8 @@ extension ReportColumnDetails on ReportColumn {
       ReportColumn.maternalMorbiditiesOther =>
         patient.maternalMorbiditiesOther ?? '',
       ReportColumn.ans => _enumLabel(patient.ans?.name),
-      ReportColumn.antenatalScan => _listLabel(patient.antentalScan),
-      ReportColumn.antenatalScanOther => patient.antentalScanOther ?? '',
+      ReportColumn.antenatalScan => _listLabel(patient.antenatalScan),
+      ReportColumn.antenatalScanOther => patient.antenatalScanOther ?? '',
       ReportColumn.modeOfDelivery => _enumLabel(patient.modeOfDelivery?.name),
       ReportColumn.resuscitationAtBirth => _listLabel(
         patient.resuscitationAtBirth,

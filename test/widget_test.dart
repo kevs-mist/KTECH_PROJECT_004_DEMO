@@ -10,6 +10,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:ktech_project_004/app/router.dart' show createRouter;
+import 'package:ktech_project_004/backend/admissions/demo_admissions_repository.dart';
+import 'package:ktech_project_004/data/providers/demo_providers.dart';
 import 'package:ktech_project_004/features/auth/auth_controller.dart';
 import 'package:ktech_project_004/main.dart';
 import 'package:ktech_project_004/models/user_role.dart';
@@ -32,7 +34,15 @@ void main() {
   testWidgets('discharge form opens and renders the patient selector', (
     WidgetTester tester,
   ) async {
-    final container = ProviderContainer();
+    // The default build selects the persistent registry; override with the
+    // seeded demo repository so the selector has patients to render.
+    final container = ProviderContainer(
+      overrides: [
+        admissionsRepositoryProvider.overrideWithValue(
+          DemoAdmissionsRepository(),
+        ),
+      ],
+    );
     addTearDown(container.dispose);
     container.read(authControllerProvider.notifier).startDemo(
       role: UserRole.dataEntry,

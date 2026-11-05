@@ -2,6 +2,9 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
+import 'package:cryptography/cryptography.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -43,9 +46,12 @@ class SharedPreferencesPatientStayStore implements PatientStayStore {
   }
 }
 
-/// Persists admissions and discharges in a JSON document with a `.data`
-/// extension. Desktop app sessions read and write the same file so records
-/// survive closing and reopening the application.
+/// Persists admissions and discharges in an AES-256-GCM encrypted JSON
+/// document with a `.data` extension. The registry key is stored in the
+/// platform secure keystore (Keychain / DPAPI) when available, falling back
+/// to a permission-restricted key file for environments without one.
+/// Desktop app sessions read and write the same file so records survive
+/// closing and reopening the application.
 class DataFilePatientStayStore implements PatientStayStore {
   final String fileName;
 
@@ -53,12 +59,102 @@ class DataFilePatientStayStore implements PatientStayStore {
     this.fileName = 'ktech_clinical_registry.data',
   });
 
+  static const String _keyAccount = 'ktech_clinical_registry_key';
+  static final AesGcm _algorithm = AesGcm.with256bits();
+
   static final Map<String, Future<void>> _writeQueues = {};
+  static final Map<String, Future<SecretKey>> _keyFutures = {};
 
   Future<File> _file() async {
     final directory = await getApplicationSupportDirectory();
     await directory.create(recursive: true);
     return File('${directory.path}${Platform.pathSeparator}$fileName');
+  }
+
+  Future<File> _keyFile() async {
+    final directory = await getApplicationSupportDirectory();
+    await directory.create(recursive: true);
+    return File(
+      '${directory.path}${Platform.pathSeparator}$fileName.key',
+    );
+  }
+
+  List<int> _randomKeyBytes() {
+    final random = Random.secure();
+    return List<int>.generate(32, (_) => random.nextInt(256));
+  }
+
+  Future<SecretKey> _registryKey() {
+    return _keyFutures[fileName] ??= _loadOrCreateKey();
+  }
+
+  Future<SecretKey> _loadOrCreateKey() async {
+    try {
+      const storage = FlutterSecureStorage();
+      final encoded = await storage.read(key: _keyAccount);
+      if (encoded != null && encoded.isNotEmpty) {
+        return SecretKey(base64Decode(encoded));
+      }
+      final generatedBytes = _randomKeyBytes();
+      await storage.write(
+        key: _keyAccount,
+        value: base64Encode(generatedBytes),
+      );
+      return SecretKey(generatedBytes);
+    } on MissingPluginException {
+      return _fileBackedKey();
+    } catch (_) {
+      return _fileBackedKey();
+    }
+  }
+
+  Future<SecretKey> _fileBackedKey() async {
+    final file = await _keyFile();
+    if (await file.exists()) {
+      final bytes = await file.readAsBytes();
+      if (bytes.length == 32) return SecretKey(bytes);
+    }
+    final bytes = _randomKeyBytes();
+    await file.writeAsBytes(bytes, flush: true);
+    try {
+      await Process.run('chmod', ['600', file.path]);
+    } catch (_) {
+      // Best effort: some platforms do not support chmod.
+    }
+    return SecretKey(bytes);
+  }
+
+  Future<String> _encrypt(String plaintext, SecretKey key) async {
+    final box = await _algorithm.encrypt(
+      utf8.encode(plaintext),
+      secretKey: key,
+    );
+    return jsonEncode({
+      'v': 1,
+      'nonce': base64Encode(box.nonce),
+      'cipherText': base64Encode(box.cipherText),
+      'mac': base64Encode(box.mac.bytes),
+    });
+  }
+
+  Future<String> _decryptEnvelope(String content, SecretKey key) async {
+    final trimmed = content.trimLeft();
+    if (!trimmed.startsWith('{')) return content;
+
+    final envelope = jsonDecode(trimmed) as Map<String, dynamic>;
+    if (!envelope.containsKey('nonce') ||
+        !envelope.containsKey('cipherText') ||
+        !envelope.containsKey('mac')) {
+      return content;
+    }
+
+    final box = SecretBox(
+      base64Decode(envelope['cipherText'] as String),
+      nonce: base64Decode(envelope['nonce'] as String),
+      mac: Mac(base64Decode(envelope['mac'] as String)),
+    );
+    final plain = await _algorithm.decrypt(box, secretKey: key);
+    return utf8.decode(plain);
   }
 
   List<PatientStay> _decode(String serialized) {
@@ -88,7 +184,20 @@ class DataFilePatientStayStore implements PatientStayStore {
       return legacy;
     }
 
-    return _decode(await file.readAsString());
+    final content = await file.readAsString();
+    try {
+      final key = await _registryKey();
+      final serialized = await _decryptEnvelope(content, key);
+      return _decode(serialized);
+    } catch (_) {
+      // Undecryptable or corrupted registry: preserve it for manual
+      // recovery, then report missing data so callers reseed cleanly.
+      try {
+        final stamp = DateTime.now().millisecondsSinceEpoch;
+        await file.rename('${file.path}.corrupt-$stamp');
+      } catch (_) {}
+      return null;
+    }
   }
 
   Future<void> _withFileLock(Future<void> Function() action) async {
@@ -124,6 +233,8 @@ class DataFilePatientStayStore implements PatientStayStore {
         final serialized = jsonEncode(
           patients.map((patient) => patient.toJson()).toList(),
         );
+        final key = await _registryKey();
+        final envelope = await _encrypt(serialized, key);
         final random = Random.secure();
         final suffix = List.generate(
           4,
@@ -132,8 +243,11 @@ class DataFilePatientStayStore implements PatientStayStore {
         final temp = File('${file.path}.$suffix.tmp');
         await temp.create(exclusive: true);
         try {
-          await temp.writeAsString(serialized, flush: true);
-          if (await file.exists()) await file.delete();
+          await temp.writeAsString(envelope, flush: true);
+          if (await file.exists()) {
+            await file.copy('${file.path}.bak');
+            await file.delete();
+          }
           await temp.rename(file.path);
         } finally {
           if (await temp.exists()) await temp.delete();

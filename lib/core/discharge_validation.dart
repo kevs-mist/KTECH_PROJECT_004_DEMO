@@ -16,3 +16,15 @@ String? validateShiftDetails({
   }
   return null;
 }
+
+String? validateDischargeChronology({
+  required DateTime doa,
+  required DateTime dod,
+}) {
+  final admissionDay = DateTime(doa.year, doa.month, doa.day);
+  final dischargeDay = DateTime(dod.year, dod.month, dod.day);
+  if (dischargeDay.isBefore(admissionDay)) {
+    return 'Discharge date cannot be earlier than admission date';
+  }
+  return null;
+}

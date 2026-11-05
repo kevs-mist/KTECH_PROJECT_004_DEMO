@@ -49,11 +49,12 @@ void main() {
   test('migrates an empty legacy registry without seeding', () async {
     SharedPreferences.setMockInitialValues({'mock_api_patient_stays': '[]'});
     expect(await store.readAll(), isEmpty);
-    expect(
-      await File('${directory.path}/ktech_clinical_registry.data')
-          .readAsString(),
-      '[]',
-    );
+    final content = await File(
+      '${directory.path}/ktech_clinical_registry.data',
+    ).readAsString();
+    // Registry must be stored encrypted, never as plaintext JSON.
+    expect(content, isNot('[]'));
+    expect(content, contains('cipherText'));
   });
 
   test(
@@ -66,7 +67,22 @@ void main() {
       expect((await store.readAll())!.single.mothersName, 'First');
       await store.writeAll([_patient('Second')]);
       expect((await store.readAll())!.single.mothersName, 'Second');
-      expect(await directory.list().length, 1);
+      // Registry, key file and pre-overwrite backup exist; no temp/lock
+      // files may be left behind.
+      final leftovers = await directory
+          .list()
+          .where(
+            (entity) => entity.path.endsWith('.tmp') ||
+                entity.path.endsWith('.lock'),
+          )
+          .toList();
+      expect(leftovers, isEmpty);
+      // The on-disk registry must not contain plaintext patient data.
+      final content = await File(
+        '${directory.path}/ktech_clinical_registry.data',
+      ).readAsString();
+      expect(content, isNot(contains('Second')));
+      expect(content, contains('cipherText'));
     },
   );
 
