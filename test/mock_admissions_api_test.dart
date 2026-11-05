@@ -51,6 +51,50 @@ void main() {
       expect(updatedStats.admissionsByDay['2026-10-27']!, greaterThanOrEqualTo(1));
     });
 
+    test('a new admission is Admitted by default, never discharged', () async {
+      final created = await api.createAdmission(
+        PatientStay(
+          prefix: Prefix.bo,
+          mothersName: 'Default Status Mother',
+          doa: DateTime(2026, 10, 27),
+          contactNumber: '9876543210',
+          contactRelation: Relation.mother,
+          pin: '380001',
+          del: 'Hospital',
+        ),
+      );
+
+      expect(created.dod, isNull);
+      expect(created.dischargeStatus, DischargeStatus.admitted);
+
+      final admitted = await api.listAdmissions(dischargedOnly: false);
+      final discharged = await api.listAdmissions(dischargedOnly: true);
+      expect(admitted.any((a) => a.id == created.id), isTrue);
+      expect(discharged.any((a) => a.id == created.id), isFalse);
+    });
+
+    test('createAdmission rejects a record that is already discharged', () async {
+      final before = (await api.listAdmissions()).length;
+
+      expect(
+        () => api.createAdmission(
+          PatientStay(
+            prefix: Prefix.bo,
+            mothersName: 'Pre Discharged Mother',
+            doa: DateTime(2026, 10, 20),
+            dod: DateTime(2026, 10, 25),
+            contactNumber: '9876543210',
+            contactRelation: Relation.mother,
+            pin: '380001',
+            del: 'Hospital',
+          ),
+        ),
+        throwsA(isA<MockApiException>()),
+      );
+
+      expect((await api.listAdmissions()).length, before);
+    });
+
     test('dischargeAdmission updates currentlyAdmitted', () async {
       final admission = await api.createAdmission(
         PatientStay(
