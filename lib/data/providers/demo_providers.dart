@@ -11,7 +11,8 @@ import '../api/admissions_api.dart';
 import '../api/default_report_pdf_export_api.dart';
 import '../api/default_report_excel_export_api.dart';
 import '../api/mock_admissions_api.dart';
-import '../api/mock_auth_api.dart';
+import '../api/mock_reports_api.dart';
+import '../api/reports_api.dart';
 import '../api/report_pdf_export_api.dart';
 import '../api/report_excel_export_api.dart';
 import '../../features/discharge/document/discharge_document_api.dart';
@@ -25,19 +26,13 @@ final mockAdmissionsApiProvider = Provider<MockAdmissionsApi>((ref) {
   return MockAdmissionsApi();
 });
 
-final mockAuthApiProvider = Provider<MockAuthApi>((ref) => MockAuthApi());
-
 final demoRepositoryProvider = Provider<AdmissionsRepository>((ref) {
   return DemoAdmissionsRepository(ref.watch(mockAdmissionsApiProvider));
 });
 
 final realAdmissionsRepositoryProvider = Provider<AdmissionsRepository>((ref) {
   return ApiAdmissionsRepository(
-    DemoAdmissionsRepository.withStore(
-      store: const SharedPreferencesPatientStayStore(
-        storageKey: 'mock_api_patient_stays',
-      ),
-    ),
+    DemoAdmissionsRepository.withStore(store: const DataFilePatientStayStore()),
   );
 });
 
@@ -50,8 +45,18 @@ final admissionsRepositoryProvider = Provider<AdmissionsRepository>((ref) {
   return ref.watch(realAdmissionsRepositoryProvider);
 });
 
+final admissionsChangedProvider = StateProvider<int>((ref) => 0);
+
+void notifyAdmissionsChanged(WidgetRef ref) {
+  ref.read(admissionsChangedProvider.notifier).state++;
+}
+
+final reportsApiProvider = Provider<ReportsApi>((ref) {
+  return MockReportsApi(ref.watch(mockAdmissionsApiProvider));
+});
+
 final reportRepositoryProvider = Provider<ReportRepository>((ref) {
-  return MockReportRepository(ref.watch(admissionsRepositoryProvider));
+  return MockReportRepository(ref.watch(reportsApiProvider));
 });
 
 /// PDF export API for reports tab
