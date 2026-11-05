@@ -2,6 +2,31 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ktech_project_004/features/admissions/models/patient_stay.dart';
 
 void main() {
+  test(
+    'copyWith can explicitly clear blood transfusion without changing defaults',
+    () {
+      final patient = PatientStay(
+        prefix: Prefix.bo,
+        mothersName: 'Example',
+        doa: DateTime(2026, 1, 1),
+        contactNumber: '1234567890',
+        contactRelation: Relation.mother,
+        pin: '380001',
+        del: 'Hospital',
+        bloodTransfusion: true,
+      );
+      expect(patient.copyWith().bloodTransfusion, isTrue);
+      expect(
+        patient.copyWith(bloodTransfusion: false).bloodTransfusion,
+        isFalse,
+      );
+      expect(
+        patient.copyWith(clearBloodTransfusion: true).bloodTransfusion,
+        isNull,
+      );
+    },
+  );
+
   test('new clinical and developmental fields round-trip through JSON', () {
     final patient = PatientStay(
       prefix: Prefix.bo,
