@@ -11,6 +11,7 @@ import '../api/admissions_api.dart';
 import '../api/default_report_pdf_export_api.dart';
 import '../api/default_report_excel_export_api.dart';
 import '../api/mock_admissions_api.dart';
+import '../api/mock_auth_api.dart';
 import '../api/mock_reports_api.dart';
 import '../api/reports_api.dart';
 import '../api/report_pdf_export_api.dart';
@@ -25,6 +26,8 @@ final authProvider = authControllerProvider;
 final mockAdmissionsApiProvider = Provider<MockAdmissionsApi>((ref) {
   return MockAdmissionsApi();
 });
+
+final mockAuthApiProvider = Provider<MockAuthApi>((ref) => MockAuthApi());
 
 final demoRepositoryProvider = Provider<AdmissionsRepository>((ref) {
   return DemoAdmissionsRepository(ref.watch(mockAdmissionsApiProvider));

@@ -608,9 +608,18 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
           final showDocumentBesideForm =
               _selectedDocument != null && constraints.maxWidth >= 1000;
           if (!showDocumentBesideForm) {
-            return _buildDischargeFormContent(compact: true);
+            return Column(
+              children: [
+                Expanded(child: _buildDischargeFormContent(compact: true)),
+                if (_selectedDocument != null &&
+                    !_supportsDocumentPreview(_selectedDocument!))
+                  Padding(
+                    padding: const EdgeInsets.all(AppTheme.space16),
+                    child: _buildExternalDocumentCard(compact: true),
+                  ),
+              ],
+            );
           }
-
           return Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -2166,6 +2175,85 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
           ],
         ),
       ],
+    );
+  }
+
+  Future<void> _openSelectedDocument() async {
+    final path = _selectedDocument?.path;
+    if (path == null) return;
+    try {
+      final result = await OpenFilex.open(path);
+      if (!mounted) return;
+      if (result.type != ResultType.done) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(result.message)));
+      }
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to open document: $error')),
+      );
+    }
+  }
+
+  Widget _buildExternalDocumentCard({bool compact = false}) {
+    final file = _selectedDocument;
+    if (file == null) return const SizedBox.shrink();
+    final extension = (file.extension ?? 'file').toUpperCase();
+
+    return Container(
+      constraints: compact ? null : const BoxConstraints(maxWidth: 420),
+      padding: const EdgeInsets.all(AppTheme.space16),
+      decoration: BoxDecoration(
+        color: AppTheme.softMint,
+        borderRadius: BorderRadius.circular(AppTheme.radius12),
+        border: Border.all(color: AppTheme.hairline),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: AppTheme.surface,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(
+              Icons.description_outlined,
+              size: 26,
+              color: AppTheme.inkTeal,
+            ),
+          ),
+          const SizedBox(width: AppTheme.space12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  file.name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleSmall
+                      ?.copyWith(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '$extension document · Opens in your default app',
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: AppTheme.textSecondary),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: AppTheme.space12),
+          FilledButton.icon(
+            onPressed: _openSelectedDocument,
+            icon: const Icon(Icons.open_in_new, size: 18),
+            label: const Text('Open'),
+          ),
+        ],
+      ),
     );
   }
 }
