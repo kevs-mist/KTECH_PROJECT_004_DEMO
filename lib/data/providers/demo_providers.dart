@@ -56,7 +56,7 @@ final reportsApiProvider = Provider<ReportsApi>((ref) {
 });
 
 final reportRepositoryProvider = Provider<ReportRepository>((ref) {
-  return MockReportRepository(ref.watch(reportsApiProvider));
+  return MockReportRepository(ref.watch(admissionsRepositoryProvider));
 });
 
 /// PDF export API for reports tab

@@ -136,7 +136,6 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
   // Checkboxes
   bool? _probiotics;
   bool? _bloodTransfusionChoice;
-  bool get _bloodTransfusion => _bloodTransfusionChoice == true;
   bool? _picc;
   bool _statusOk = false;
 
@@ -529,7 +528,8 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
         ventilation: _ventilation.isEmpty ? null : _ventilation.toList(),
         bpd: _bpd,
         probiotics: _probiotics,
-        bloodTransfusion: _bloodTransfusion,
+        bloodTransfusion: _bloodTransfusionChoice,
+        clearBloodTransfusion: _bloodTransfusionChoice == null,
         rop: _rop,
         usgHead: _usgHeadController.text.trim().isEmpty
             ? null
@@ -607,7 +607,9 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
         builder: (context, constraints) {
           final showDocumentBesideForm =
               _selectedDocument != null && constraints.maxWidth >= 1000;
-          if (!showDocumentBesideForm) return _buildDischargeFormContent();
+          if (!showDocumentBesideForm) {
+            return _buildDischargeFormContent(compact: true);
+          }
 
           return Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -622,7 +624,7 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
     );
   }
 
-  Widget _buildDischargeFormContent() {
+  Widget _buildDischargeFormContent({bool compact = false}) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppTheme.space24),
       child: Center(
@@ -664,6 +666,12 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
                     ),
                   ],
                 ),
+                if (compact &&
+                    _selectedDocument?.path != null &&
+                    !_supportsDocumentPreview(_selectedDocument!)) ...[
+                  const SizedBox(height: AppTheme.space16),
+                  _buildOpenDocumentButton(_selectedDocument!.path!),
+                ],
                 const SizedBox(height: AppTheme.space16),
                 _buildPatientSelector(),
                 if (_selectedPatient != null) ...[
@@ -697,6 +705,41 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  bool _supportsDocumentPreview(PlatformFile file) {
+    final extension = (file.extension ?? '').toLowerCase();
+    return {
+      'pdf',
+      'png',
+      'jpg',
+      'jpeg',
+      'webp',
+      'gif',
+      'bmp',
+    }.contains(extension);
+  }
+
+  Widget _buildOpenDocumentButton(String path) {
+    return FilledButton.icon(
+      onPressed: () async {
+        try {
+          final result = await OpenFilex.open(path);
+          if (!mounted) return;
+          if (result.type != ResultType.done) {
+            ScaffoldMessenger.of(context)
+                .showSnackBar(SnackBar(content: Text(result.message)));
+          }
+        } catch (error) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Unable to open document: $error')),
+          );
+        }
+      },
+      icon: const Icon(Icons.open_in_new),
+      label: const Text('Open in default app'),
     );
   }
 
@@ -742,28 +785,7 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
               ),
               if (path != null) ...[
                 const SizedBox(height: AppTheme.space16),
-                FilledButton.icon(
-                  onPressed: () async {
-                    try {
-                      final result = await OpenFilex.open(path);
-                      if (!mounted) return;
-                      if (result.type != ResultType.done) {
-                        ScaffoldMessenger.of(
-                          context,
-                        ).showSnackBar(SnackBar(content: Text(result.message)));
-                      }
-                    } catch (error) {
-                      if (!mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Unable to open document: $error'),
-                        ),
-                      );
-                    }
-                  },
-                  icon: const Icon(Icons.open_in_new),
-                  label: const Text('Open in default app'),
-                ),
+                _buildOpenDocumentButton(path),
               ],
             ],
           ),
@@ -2125,6 +2147,7 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
         Row(
           children: [
             Checkbox(
+              semanticLabel: 'Blood Transfusion Yes',
               value: _bloodTransfusionChoice == true,
               onChanged: (checked) => setState(() {
                 _bloodTransfusionChoice = checked == true ? true : null;
@@ -2133,6 +2156,7 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
             const Text('Yes'),
             const SizedBox(width: AppTheme.space24),
             Checkbox(
+              semanticLabel: 'Blood Transfusion No',
               value: _bloodTransfusionChoice == false,
               onChanged: (checked) => setState(() {
                 _bloodTransfusionChoice = checked == true ? false : null;

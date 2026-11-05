@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -53,12 +54,7 @@ class DataFilePatientStayStore implements PatientStayStore {
   });
 
   Future<File> _file() async {
-    late final Directory directory;
-    try {
-      directory = await getApplicationSupportDirectory();
-    } catch (_) {
-      directory = await getApplicationDocumentsDirectory();
-    }
+    final directory = await getApplicationSupportDirectory();
     await directory.create(recursive: true);
     return File('${directory.path}${Platform.pathSeparator}$fileName');
   }
@@ -66,7 +62,13 @@ class DataFilePatientStayStore implements PatientStayStore {
   @override
   Future<List<PatientStay>?> readAll() async {
     final file = await _file();
-    if (!await file.exists()) return null;
+    if (!await file.exists()) {
+      final records = await const SharedPreferencesPatientStayStore(
+        storageKey: 'mock_api_patient_stays',
+      ).readAll();
+      if (records != null) await _writeFile(file, records);
+      return records;
+    }
 
     final serialized = await file.readAsString();
     if (serialized.trim().isEmpty) return <PatientStay>[];
@@ -83,9 +85,22 @@ class DataFilePatientStayStore implements PatientStayStore {
   @override
   Future<void> writeAll(List<PatientStay> patients) async {
     final file = await _file();
+    await _writeFile(file, patients);
+  }
+
+  Future<void> _writeFile(File file, List<PatientStay> patients) async {
     final serialized = jsonEncode(
       patients.map((patient) => patient.toJson()).toList(),
     );
-    await file.writeAsString(serialized, flush: true);
+    final random = Random.secure();
+    final suffix = List.generate(4, (_) => random.nextInt(1 << 32)).join('-');
+    final temporary = File('${file.path}.$suffix.tmp');
+    await temporary.create(exclusive: true);
+    try {
+      await temporary.writeAsString(serialized, flush: true);
+      await temporary.rename(file.path);
+    } finally {
+      if (await temporary.exists()) await temporary.delete();
+    }
   }
 }

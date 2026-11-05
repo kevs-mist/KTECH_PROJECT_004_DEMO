@@ -317,6 +317,7 @@ class PatientStay {
     BPD? bpd,
     bool? probiotics,
     bool? bloodTransfusion,
+    bool clearBloodTransfusion = false,
     ROP? rop,
     String? usgHead,
     String? fileName,
@@ -407,7 +408,9 @@ class PatientStay {
       ventilation: ventilation ?? this.ventilation,
       bpd: bpd ?? this.bpd,
       probiotics: probiotics ?? this.probiotics,
-      bloodTransfusion: bloodTransfusion ?? this.bloodTransfusion,
+      bloodTransfusion: clearBloodTransfusion
+          ? null
+          : (bloodTransfusion ?? this.bloodTransfusion),
       rop: rop ?? this.rop,
       usgHead: usgHead ?? this.usgHead,
       fileName: fileName ?? this.fileName,
