@@ -11,7 +11,14 @@ import '../../widgets/clinical_workspace.dart';
 import '../../widgets/demo_banner.dart';
 
 class AdmissionFormScreen extends ConsumerStatefulWidget {
-  const AdmissionFormScreen({super.key});
+  final String? patientId;
+  final String? readmissionFromId;
+
+  const AdmissionFormScreen({
+    super.key,
+    this.patientId,
+    this.readmissionFromId,
+  });
 
   @override
   ConsumerState<AdmissionFormScreen> createState() =>
@@ -50,10 +57,18 @@ class _AdmissionFormScreenState extends ConsumerState<AdmissionFormScreen> {
   String? _errorMessage;
   int? _serialNo;
 
+  PatientStay? _editingPatient;
+
   @override
   void initState() {
     super.initState();
-    _loadNextSerialNo(_doa);
+    if (widget.readmissionFromId != null) {
+      _loadReadmissionData(widget.readmissionFromId!);
+    } else if (widget.patientId != null) {
+      _loadPatientData(widget.patientId!);
+    } else {
+      _loadNextSerialNo(_doa);
+    }
     _loadPatientsForNameSuggestions();
   }
 
@@ -72,6 +87,80 @@ class _AdmissionFormScreenState extends ConsumerState<AdmissionFormScreen> {
     _remarksController.dispose();
     _lastRemarkedController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadPatientData(String patientId) async {
+    try {
+      final patient = await ref
+          .read(admissionsRepositoryProvider)
+          .getPatientById(patientId);
+      if (!mounted) return;
+      if (patient == null) {
+        setState(() => _errorMessage = 'Patient not found');
+        return;
+      }
+      setState(() {
+        _editingPatient = patient;
+        _prefix = patient.prefix;
+        _mothersNameController.text = patient.mothersName;
+        _babyNameController.text = patient.babyName ?? '';
+        _branch = patient.branch;
+        _admissionType = patient.admissionType;
+        _admissionHistory = patient.admissionHistory;
+        _birthType = patient.birthType;
+        _doa = patient.doa;
+        _contactNumberController.text = patient.contactNumber;
+        _contactRelation = patient.contactRelation;
+        _contactNumber2Controller.text = patient.contactNumber2 ?? '';
+        _contactRelation2 = patient.contactRelation2;
+        _addressController.text = patient.address ?? '';
+        _streetController.text = patient.street ?? '';
+        _areaController.text = patient.area ?? '';
+        _cityController.text = patient.city;
+        _pinController.text = patient.pin;
+        _delController.text = patient.del;
+        _status = patient.status;
+        _remarksController.text = patient.remarks ?? '';
+        _lastRemarkedController.text = patient.lastRemarked ?? '';
+      });
+    } catch (e) {
+      // Handle error (e.g., show a snackbar)
+    }
+  }
+
+  Future<void> _loadReadmissionData(String patientId) async {
+    try {
+      final patient = await ref
+          .read(admissionsRepositoryProvider)
+          .getPatientById(patientId);
+      if (!mounted || patient == null) return;
+      setState(() {
+        _prefix = patient.prefix;
+        _mothersNameController.text = patient.mothersName;
+        _babyNameController.text = patient.babyName ?? '';
+        _babyNameEdited = true;
+        _branch = patient.branch;
+        _admissionType = patient.admissionType;
+        _admissionHistory = AdmissionHistory.reAdmission;
+        _birthType = patient.birthType;
+        _doa = DateTime.now();
+        _contactNumberController.text = patient.contactNumber;
+        _contactRelation = patient.contactRelation;
+        _contactNumber2Controller.text = patient.contactNumber2 ?? '';
+        _contactRelation2 = patient.contactRelation2;
+        _addressController.text = patient.address ?? '';
+        _streetController.text = patient.street ?? '';
+        _areaController.text = patient.area ?? '';
+        _cityController.text = patient.city;
+        _pinController.text = patient.pin;
+        _delController.text = patient.del;
+        _status = null;
+        _remarksController.text = patient.remarks ?? '';
+      });
+      _loadNextSerialNo(_doa);
+    } catch (e) {
+      setState(() => _errorMessage = 'Unable to load readmission details: $e');
+    }
   }
 
   Future<void> _loadNextSerialNo(DateTime admissionDate) async {
@@ -179,7 +268,82 @@ class _AdmissionFormScreenState extends ConsumerState<AdmissionFormScreen> {
             : null,
       );
 
-      await ref.read(admissionsRepositoryProvider).createAdmission(patient);
+      if (widget.patientId != null) {
+        final existing = _editingPatient;
+        if (existing == null) {
+          throw StateError('Patient record is not loaded yet');
+        }
+        await ref
+            .read(admissionsRepositoryProvider)
+            .updateAdmission(
+              existing.copyWith(
+                prefix: _prefix,
+                mothersName: _mothersNameController.text.trim(),
+                babyName: _babyNameController.text.trim(),
+                branch: _branch,
+                admissionType: _admissionType,
+                admissionHistory: _admissionHistory,
+                birthType: _birthType,
+                doa: _doa,
+                contactNumber: _contactNumberController.text.trim(),
+                contactRelation: _contactRelation,
+                contactNumber2: _contactNumber2Controller.text.trim().isEmpty
+                    ? null
+                    : _contactNumber2Controller.text.trim(),
+                contactRelation2: _contactRelation2,
+                address: _addressController.text.trim().isEmpty
+                    ? null
+                    : _addressController.text.trim(),
+                street: _streetController.text.trim().isEmpty
+                    ? null
+                    : _streetController.text.trim(),
+                area: _areaController.text.trim().isEmpty
+                    ? null
+                    : _areaController.text.trim(),
+                city: _cityController.text.trim(),
+                pin: _pinController.text.trim(),
+                del: _delController.text.trim(),
+                status: _status,
+                remarks: _remarksController.text.trim().isEmpty
+                    ? null
+                    : _remarksController.text.trim(),
+                lastRemarked:
+                    ref.read(authControllerProvider).canWrite &&
+                        _lastRemarkedController.text.trim().isNotEmpty
+                    ? _lastRemarkedController.text.trim()
+                    : null,
+              ),
+            );
+      } else {
+        final newAdmission = PatientStay(
+          prefix: patient.prefix,
+          mothersName: patient.mothersName,
+          babyName: patient.babyName,
+          branch: patient.branch,
+          admissionType: patient.admissionType,
+          admissionHistory: widget.readmissionFromId == null
+              ? patient.admissionHistory
+              : AdmissionHistory.reAdmission,
+          birthType: patient.birthType,
+          doa: patient.doa,
+          contactNumber: patient.contactNumber,
+          contactRelation: patient.contactRelation,
+          contactNumber2: patient.contactNumber2,
+          contactRelation2: patient.contactRelation2,
+          address: patient.address,
+          street: patient.street,
+          area: patient.area,
+          city: patient.city,
+          pin: patient.pin,
+          del: patient.del,
+          status: patient.status,
+          remarks: patient.remarks,
+          lastRemarked: patient.lastRemarked,
+        );
+        await ref
+            .read(admissionsRepositoryProvider)
+            .createAdmission(newAdmission);
+      }
       ref.invalidate(admissionsListProvider);
       ref.invalidate(dashboardStatsProvider);
 
@@ -190,7 +354,7 @@ class _AdmissionFormScreenState extends ConsumerState<AdmissionFormScreen> {
             content: Text(
               isDemo
                   ? 'Added to the demo session only. Data is cleared when you exit.'
-                  : 'Admission created successfully',
+                  : 'Admission ${widget.patientId != null ? 'updated' : 'created'} successfully',
             ),
           ),
         );
@@ -198,7 +362,8 @@ class _AdmissionFormScreenState extends ConsumerState<AdmissionFormScreen> {
       }
     } catch (e) {
       setState(() {
-        _errorMessage = 'Failed to create admission: $e';
+        _errorMessage =
+            'Failed to ${widget.patientId != null ? 'update' : 'create'} admission: $e';
       });
     } finally {
       if (mounted) {
@@ -685,9 +850,8 @@ class _AdmissionFormScreenState extends ConsumerState<AdmissionFormScreen> {
                 const SizedBox(width: AppTheme.space12),
                 Text(
                   formatDate(date),
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppTheme.textPrimary,
-                  ),
+                  style: Theme.of(context).textTheme.bodyMedium
+                      ?.copyWith(color: AppTheme.textPrimary),
                 ),
               ],
             ),

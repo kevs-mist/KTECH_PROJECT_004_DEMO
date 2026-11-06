@@ -1,6 +1,6 @@
-import 'package:flutter/material.dart';
-
 import 'dart:io';
+
+import 'package:flutter/material.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -20,7 +20,9 @@ import '../../widgets/clinical_workspace.dart';
 import '../../widgets/demo_banner.dart';
 
 class DischargeFormScreen extends ConsumerStatefulWidget {
-  const DischargeFormScreen({super.key});
+  final String? patientId;
+
+  const DischargeFormScreen({super.key, this.patientId});
 
   @override
   ConsumerState<DischargeFormScreen> createState() =>
@@ -116,7 +118,7 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
     'Patan',
     'Porbandar',
     'Rajkot',
-    ' साबरकांઠા',
+    ' साबरकांठा',
     'Surat',
     'Surendranagar',
     'Tapi',
@@ -150,6 +152,7 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
     super.initState();
     _dodController.text = formatDate(_dod);
     _loadAdmittedPatients();
+    _loadPatientData();
   }
 
   @override
@@ -194,9 +197,9 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
     });
 
     try {
-      final patients = await ref
-          .read(admissionsRepositoryProvider)
-          .getAdmittedPatients();
+      final patients = widget.patientId == null
+          ? await ref.read(admissionsRepositoryProvider).getAdmittedPatients()
+          : await ref.read(admissionsRepositoryProvider).getAllPatients();
       setState(() {
         _admittedPatients = patients;
         _isLoadingPatients = false;
@@ -215,7 +218,13 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
         'pdf',
         'doc',
         'docx',
+        'dot',
+        'dotx',
+        'rtf',
+        'odt',
         'pages',
+        'gdoc',
+        'txt',
         'png',
         'jpg',
         'jpeg',
@@ -614,6 +623,33 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
     }
   }
 
+  Future<void> _loadPatientData() async {
+    if (widget.patientId == null) return;
+
+    setState(() {
+      _isLoadingPatients = true;
+    });
+
+    try {
+      final patient = await ref
+          .read(admissionsRepositoryProvider)
+          .getPatientById(widget.patientId!);
+      if (patient != null) {
+        _onPatientSelected(patient);
+      } else {
+        setState(() {
+          _errorMessage = 'Patient not found';
+          _isLoadingPatients = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Error loading patient data: $e';
+        _isLoadingPatients = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return ClinicalWorkspace(
@@ -627,6 +663,7 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
               children: [
                 Expanded(child: _buildDischargeFormContent(compact: true)),
                 if (_selectedDocument != null &&
+                    _selectedDocument!.path != null &&
                     !_supportsDocumentPreview(_selectedDocument!))
                   Padding(
                     padding: const EdgeInsets.all(AppTheme.space16),
@@ -690,12 +727,6 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
                     ),
                   ],
                 ),
-                if (compact &&
-                    _selectedDocument?.path != null &&
-                    !_supportsDocumentPreview(_selectedDocument!)) ...[
-                  const SizedBox(height: AppTheme.space16),
-                  _buildOpenDocumentButton(_selectedDocument!.path!),
-                ],
                 const SizedBox(height: AppTheme.space16),
                 _buildPatientSelector(),
                 if (_selectedPatient != null) ...[
@@ -734,7 +765,20 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
 
   bool _supportsDocumentPreview(PlatformFile file) {
     final extension = (file.extension ?? '').toLowerCase();
-    return {'pdf', 'docx'}.contains(extension);
+    return {
+      'pdf',
+      'docx',
+      'png',
+      'jpg',
+      'jpeg',
+      'webp',
+      'gif',
+      'bmp',
+    }.contains(extension);
+  }
+
+  bool _supportsImagePreview(String extension) {
+    return {'png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp'}.contains(extension);
   }
 
   Widget _buildOpenDocumentButton(String path) {
@@ -767,10 +811,16 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
     Widget content;
     if (extension == 'pdf' && path != null) {
       content = PdfViewer.file(path);
-    } else if ({'docx'}.contains(extension) && path != null) {
+    } else if (extension == 'docx' && path != null) {
       content = DocxView.file(
         File(path),
         config: const DocxViewConfig(enableSearch: true, enableZoom: true),
+      );
+    } else if (_supportsImagePreview(extension) && path != null) {
+      content = InteractiveViewer(
+        minScale: 0.5,
+        maxScale: 5,
+        child: Center(child: Image.file(File(path), fit: BoxFit.contain)),
       );
     } else {
       content = Center(
@@ -787,10 +837,9 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               const SizedBox(height: AppTheme.space8),
-              Text(
-                'Side-by-side preview supports PDF and image files.',
+              const Text(
+                'This document type opens in your default desktop app.',
                 textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodySmall,
               ),
               if (path != null) ...[
                 const SizedBox(height: AppTheme.space16),
@@ -2252,7 +2301,7 @@ class _DischargeFormScreenState extends ConsumerState<DischargeFormScreen> {
           FilledButton.icon(
             onPressed: _openSelectedDocument,
             icon: const Icon(Icons.open_in_new, size: 18),
-            label: const Text('Open'),
+            label: const Text('Open in default app'),
           ),
         ],
       ),
