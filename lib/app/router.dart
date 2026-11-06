@@ -63,7 +63,8 @@ GoRouter createRouter({
       final loggedIn = auth.isAuthenticated || auth.isDemo;
       final loc = state.matchedLocation;
       if (loc == '/splash') return null;
-      final isPublic = loc == '/roles' ||
+      final isPublic =
+          loc == '/roles' ||
           loc.startsWith('/login') ||
           loc.startsWith('/forgot') ||
           loc.startsWith('/register');
@@ -205,6 +206,69 @@ GoRouter createRouter({
         builder: (context, state) => const _AuthGuard(
           child: _WritePermissionGuard(child: DischargeFormScreen()),
         ),
+      ),
+      // Edit an existing admission or discharge record.
+      GoRoute(
+        path: '/admission/:id/edit',
+        name: 'edit-admission',
+        builder: (context, state) {
+          final patientId = state.pathParameters['id'] ?? '';
+          return _AuthGuard(
+            child: _WritePermissionGuard(
+              child: AdmissionFormScreen(patientId: patientId),
+            ),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/discharge/:id/edit',
+        name: 'edit-discharge',
+        builder: (context, state) {
+          final patientId = state.pathParameters['id'] ?? '';
+          return _AuthGuard(
+            child: _WritePermissionGuard(
+              child: DischargeFormScreen(patientId: patientId),
+            ),
+          );
+        },
+      ),
+      // Case-compatible aliases for patient edit URLs
+      GoRoute(
+        path: '/Admission/:id/edit',
+        name: 'edit-admission-uppercase',
+        builder: (context, state) {
+          final patientId = state.pathParameters['id'] ?? '';
+          return _AuthGuard(
+            child: _WritePermissionGuard(
+              child: AdmissionFormScreen(patientId: patientId),
+            ),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/Discharge/:id/edit',
+        name: 'edit-discharge-uppercase',
+        builder: (context, state) {
+          final patientId = state.pathParameters['id'] ?? '';
+          return _AuthGuard(
+            child: _WritePermissionGuard(
+              child: DischargeFormScreen(patientId: patientId),
+            ),
+          );
+        },
+      ),
+      // Re-admission route
+      GoRoute(
+        path: '/admission/:id/readmit',
+        name: 'readmit-patient',
+        builder: (context, state) {
+          final patientId = state.pathParameters['id'] ?? '';
+          return _AuthGuard(
+            child: _WritePermissionGuard(
+              child: AdmissionFormScreen(readmissionFromId: patientId),
+            ),
+          );
+        },
       ),
     ],
   );

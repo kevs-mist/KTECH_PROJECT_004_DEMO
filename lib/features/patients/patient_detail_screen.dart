@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../app/theme.dart';
 import '../../core/aggregation.dart';
@@ -141,6 +142,27 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
                 ),
               ),
               _StatusChip(status: patient.dischargeStatus),
+              const SizedBox(width: AppTheme.space8),
+              FilledButton.icon(
+                onPressed: () => context.go('/admission/${patient.id}/edit'),
+                icon: const Icon(Icons.edit_outlined, size: 18),
+                label: const Text('Edit Admission'),
+              ),
+              const SizedBox(width: AppTheme.space8),
+              OutlinedButton.icon(
+                onPressed: () => context.go('/discharge/${patient.id}/edit'),
+                icon: const Icon(Icons.edit_calendar_outlined, size: 18),
+                label: Text(
+                  patient.dod == null ? 'Discharge' : 'Edit Discharge',
+                ),
+              ),
+              if (patient.dod != null)
+                OutlinedButton.icon(
+                  onPressed: () =>
+                      context.go('/admission/${patient.id}/readmit'),
+                  icon: const Icon(Icons.restart_alt_outlined, size: 18),
+                  label: const Text('Readmit'),
+                ),
             ],
           ),
           const SizedBox(height: AppTheme.space16),
@@ -158,6 +180,7 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
               value: formatDate(patient.dod!),
             ),
           _DetailRow(label: 'Days Stayed', value: patient.daysStayedText),
+          const SizedBox(height: AppTheme.space16),
         ],
       ),
     );
